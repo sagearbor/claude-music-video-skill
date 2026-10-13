@@ -19,7 +19,8 @@ by Claude Code (Opus 5.5) plus 9 parallel chapter sub-agents. No image or video 
 | 15:57–16:00 | **v1 rendered: 6,471 frames in 2 min 35 s (0.024 s/frame, 6 workers)**, encoded in 57 s |
 | 16:20 | You reviewed v1: kicks into air, keys jumping hands, upside-down pencil, bodies teleporting (37/41/46/51/56 s), legs popping through the floor at 2:25 |
 | 16:25–17:05 | The continuity round: the linter, contact assertions, interaction helpers, shot-boundary blend; every chapter fixed to **0 problems** |
-| 17:05– | Whole-song lint, v2 render |
+| 17:08–17:13 | **v2 rendered: 6,471 frames in 305 s (0.046 s/frame, 6 workers; slower than v1 because every district is now drawn every frame)** |
+| 17:15–17:25 | Encoded, checked with ffprobe (1920×1080 h264 + aac, 269.61 s), spot-checked your flagged moments in v2, delivered a phone copy + OneDrive |
 
 ## What made it work
 - **The bake-off, run twice.** Round 1 favoured Three.js on speed; a fair round 2 showed Blender's look was better,
@@ -29,11 +30,18 @@ by Claude Code (Opus 5.5) plus 9 parallel chapter sub-agents. No image or video 
 - **The continuity linter.** v1 looked fine in contact sheets and still had obvious motion errors. Simulating every
   frame found all of them, and the agents fixed them against a 0-problem gate.
 
-## Tokens and cost
-See the PR description for the final numbers. At the v1 render the session had used (deduplicated by message id):
-0.36 M output, 172 M cache-read and 1.2 M cache-write tokens (main session plus 9 sub-agents); about **$48 at API list
-prices** (Opus 5.5: $4/M input, $20/M output, $0.20/M cache read, $5/M cache write). On a Claude subscription: $0 extra.
-The continuity round roughly doubled the sub-agent usage.
+## Tokens and cost (from this session's transcripts, deduplicated by message id)
+| | Output | Cache reads | Cache writes | API-equivalent |
+|---|---|---|---|---|
+| Main session (orchestration, engine, bake-off, tools) | 0.37 M | 131 M | 1.4 M | $41 |
+| Sub-agents (9 chapter builders × build + fix round) | 0.13 M | 274 M | 6.3 M | $89 |
+| **Total** | **0.50 M** | **405 M** | **7.7 M** | **≈ $130** |
+
+At Opus 5.5 list prices ($4/M input, $20/M output, $0.20/M cache read, $5/M cache write). On a Claude subscription: $0 extra.
+The continuity round roughly tripled the sub-agent spend: catching motion errors with the linter *before* v1 would have
+saved most of it, and that's now the default (the gate is in `CHAPTER_GUIDE.md`).
+**Wall clock:** 2 h 39 min from the prompt to the v2 MP4 (14:46 → 17:25), including your design review and v1 review.
+**Render:** v1 0.024 s/frame, v2 0.046 s/frame at 1080p (6 parallel headless Chrome workers on an M5 Max).
 
 ## Files
 - Video: `~/PROJECTS/zoo2-3d-video/out/zoo2_3d_full.mp4` (v2) and `zoo2_3d_full_v1.mp4` (kept for comparison)
