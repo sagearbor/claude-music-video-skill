@@ -1,6 +1,6 @@
 ---
 name: music-video
-description: Make a full-length music video for a song, drawn entirely from CODE (p5.js + p5.brush painted cartoon in headless Chrome, ffmpeg for audio), with no AI image/video generation and no API spend beyond the Claude plan. Lyric-driven storyboard, phase-fitted beat grid, karaoke captions, a 30-second pilot gate, then chapters built in parallel by sub-agents. Use when asked to make, animate or storyboard a music video, lyric video or beat-synced animation, in ANY repo.
+description: Make a full-length music video for a song, drawn entirely from CODE (2D: p5.js + p5.brush painted cartoon; 3D: a Three.js brick-toy stop-motion world built from LDraw parts; headless Chrome, ffmpeg for audio), with no AI image/video generation and no API spend beyond the Claude plan. Lyric-driven storyboard, phase-fitted beat grid, karaoke captions, a 30-second pilot gate, then chapters built in parallel by sub-agents. Use when asked to make, animate or storyboard a music video, lyric video or beat-synced animation, in ANY repo.
 metadata:
   author: Sage Arbor
 ---
@@ -10,7 +10,7 @@ metadata:
 ## Subcommands (check these first)
 | Invocation | Do this |
 |---|---|
-| `/music-video help`, `/music-video` with no song, or "how do I use this?" | Print the **Help** block below verbatim, then check prerequisites (`node -v`, `ffmpeg -version`, `uv --version`, Chrome present) and report each as ✅/❌ with the install command. Stop; don't start a video. |
+| `/music-video help`, `/music-video` with no song, or "how do I use this?" | Print the **Help** block below verbatim, then check prerequisites (`node -v`, `ffmpeg -version`, `uv --version`, Chrome present; for 3D also `blender --version`, optional) and report each as ✅/❌ with the install command. Stop; don't start a video. |
 | `/music-video lessons` | Print `LESSONS.md` (the newest entry in full, older entries as headings only). |
 | `/music-video <song file> [lyrics.srt] [flags] [notes]` | Parse the **Flags** below, say which gates are on in one line, then run the pipeline. |
 
@@ -32,6 +32,13 @@ FLAGS (default: stop at storyboard AND pilot for your approval)
                            sheets, palette swatches, one style frame per chapter)
                            and stops so you can iterate on the look before any
                            animation. Combine: --design --skip=pilot
+                           (3D: turnaround + expression sheets, a motion test
+                           clip, one lit set, a world map and zone views)
+  --engine=2d|3d           2d (default): hand-painted p5.brush cartoon.
+                           3d: a brick-toy stop-motion world (minifig-style
+                           people, plastic sheen, soft light, shallow focus),
+                           ONE continuous world the camera flies through, with
+                           a flat dial that squashes 3D into a 2D cut-out.
   Skipped gates are not skipped work: the artifact is still made and self-reviewed,
   and the choices it made are listed in DECISIONS.md for you to read afterwards.
 
@@ -44,6 +51,8 @@ WHAT HAPPENS (about 1.5–2 h with stops; about 45–60 min with --auto)
   5. Renders out/<song>_full.mp4 (1080p, H.264 + AAC), ready for YouTube
 
 NEEDS   Node 20+, Google Chrome, ffmpeg, uv  (Mac: brew install node ffmpeg uv)
+        3d also downloads the LDraw parts library (CC BY 4.0, 146 MB, once);
+        Blender is optional (brew install --cask blender): it bevels the bricks
 COST    no API spend; uses your Claude plan (a full song is a sizeable chunk of usage)
 OUTPUT  a project folder (default ~/PROJECTS/<song>-video/), outside any repo
 AFTER   "add today's lessons to the music-video skill" makes the next video better
@@ -59,6 +68,8 @@ Attempt 1 of zoo2 did that overnight and was rejected. Code-drawn frames are pur
 smooth, on model and exactly on the beat. Cloud video models (Kling, Seedance, Veo) are the other route, at about $70–300 a song.
 
 ## Flags and gates
+`--engine=3d` (or "3D", "brick", "stop-motion", "minifig" in plain words) switches to the 3D engine: follow the
+**3D engine** section below wherever it differs. Default stays `--engine=2d`.
 Parse flags from the arguments **and** from plain words: "no stops", "fully autonomous", "just make it" mean
 `--skip=all`; "skip the storyboard approval" means `--skip=storyboard`; "let me see the characters first", "plan it
 out more" mean `--design`. Values combine with commas (`--skip=storyboard,design`). Unknown flag: say so and stop.
@@ -133,3 +144,32 @@ Never skip the final ffprobe check and the lyric/frame spot check in step 8: tho
 - **Captions:** the kit's guide says "no text"; music videos override that with the karaoke bar (`PROJECT.karaoke`).
   Keep scene text to one or two painted words, used once.
 - **Beat helper:** `SETS.bt(k) = OFF + k*BEAT`. Put hits on `bt(k)` or on off-beats (`+BEAT/2`), and big changes on bar lines.
+
+## 3D engine (`--engine=3d`)
+Example: `examples/zoo2-3d/` (zoo2 remade as a brick world). Same pipeline and gates; these steps differ:
+1. **Project:** `bash ~/.claude/skills/music-video/scripts/setup_project.sh DIR --engine=3d`. On top of the 2D kit, this adds
+   Three.js (pinned), the 3D `studio.html` (the 2D one is kept as `studio2d.html`), `src3d/` (engine, motion, cast, eggs),
+   the LDraw parts baked by `scripts/ldraw_bake.py` into `parts/parts.js` (crowd faces are official printed heads), a
+   Blender bevel pass (`scripts/bevel_parts.py`, if Blender is installed), and starter scenes `scenes3d/world.js` (districts,
+   look presets, seam flights), `country.js` (the land between districts: city, town, river, forest, farmland, eggs),
+   `design.js` (the design sheets), plus `CHAPTER_GUIDE.md`, which every chapter agent reads first.
+2. **One world, no cuts.** Each chapter is a *district* (`WORLD.D`). Between chapters the camera flies (`WORLD.F` flights,
+   `fly()`); big drops may *whip* in (`whip: true`), others glide in and land on the downbeat with `WORLD.landing()` (a bump
+   and a flash, not a cut). Inside a chapter the camera follows one `path()` (Catmull-Rom; `kf` stops at every key).
+   Edit `world.js` for the song: district centres, `LOOK` presets for the palette arc, flight times at the chapter seams.
+3. **The living world.** Background motion in every frame: `buildSite` (robots raising buildings that grow across the
+   WHOLE song), `field` (sowers), `passerby`, cranes, river ripples, boats; easter eggs (`EGGS.*`) hidden in districts.
+4. **Cast:** `fig(key, PIP)` (custom decal faces, 16 expressions), `fig(key, crowdLook(i))` (official 2-sided printed
+   heads: unhappy faces spin the head), `clawd()` + `clawdPose()` (costume hats), `robot()`. Motion: `walk`, `run`,
+   `dance(name, t)` (14 beat-locked moves), `crowdDance(i, t)`. Props are pre-oriented for hands (`heldPencil`, `heldHandset`).
+5. **The flat dial:** `cam({ flat })`, 0 → 1, combines a dolly-zoom to orthographic, a z-squash toward the focus plane,
+   PBR → toon shading and ink outlines (a depth + normal edge pass). Animate it per shot (zoo2: the bridge flattens to 2D as
+   the light drops to black, then snaps back to 3D on the final-chorus drop). Ink only appears once nearly orthographic.
+6. **Design (`--design`):** `node render.mjs --loop=<name> --sheet=...` on the `design.js` loops: `pipTurn`, `pipFaces`,
+   `pipPoses`, `faceIds`, `heads`, `clawd`, `lineup`, `litSet`, `worldMap`, `zones`, and `moves` as a short clip
+   (`--clip --loop=moves`) for judging motion. G2 stops on these.
+7. **Chapters:** pre-create stubs + module tags; each agent gets its time range, district, seam flight ids, eggs to hide
+   and "YOUR FILE ONLY"; `CHAPTER_GUIDE.md` is the contract. Render as in 2D: about 0.04 s/frame (zoo2: 6,470 frames in minutes).
+8. **Blender** is the offline asset baker, not the renderer: in the zoo2 bake-off, EEVEE/Cycles looked best (bevels, contact
+   shading) but rendered ~100× slower; baking the bevels into the parts closed most of the gap
+   (see `examples/zoo2-3d/bakeoff/VERDICT.md`). Keep `blender/bakeoff_chorus1.py` as the template for a Cycles hero shot.

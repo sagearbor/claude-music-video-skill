@@ -75,8 +75,9 @@ class Baker:
         self.two_sided = False
         self.missing = set()
 
-    def walk(self, name, m=IDENT, colour=16, invert=False, depth=0, text=None):
-        """Recurse into an LDraw file. `invert` is the accumulated winding flip from parents (INVERTNEXT, det<0)."""
+    def walk(self, name, m=IDENT, colour=16, invert=False, depth=0, text=None, chain=True):
+        """Recurse into an LDraw file. `invert` is the accumulated winding flip from parents (INVERTNEXT, det<0);
+        `chain` is False once any ancestor is not BFC-certified (then every face below it is two-sided, per the BFC spec)."""
         if depth > 40:
             raise RecursionError(name)
         lines = text.splitlines() if text is not None else self.lib.lines(name)
@@ -107,7 +108,7 @@ class Baker:
                 sub = (v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[0], v[1], v[2])
                 child = " ".join(tok[14:])
                 try:
-                    self.walk(child, mat_mul(m, sub), col, invert ^ invert_next, depth + 1)
+                    self.walk(child, mat_mul(m, sub), col, invert ^ invert_next, depth + 1, chain=chain and certified is True)
                 except FileNotFoundError:
                     self.missing.add(child)
                 invert_next = False
@@ -119,7 +120,7 @@ class Baker:
                 if len(tok) < 2 + 3 * n:
                     continue
                 p = _pts(tok[2:2 + 3 * n], m)
-                if certified is not True:
+                if certified is not True or not chain:
                     self.two_sided = True
                 # front face is CCW after the winding rules; our output frame flips handedness twice (no net change)
                 back = (not ccw) ^ flip

@@ -33,7 +33,7 @@
         l.push(['3068b', COL.dkgrey, x - 1, y, z, 0], ['3068b', COL.dkgrey, x + 1, y, z, 0]); if (br) l.push(['3010', COL.tan, x - 2.5, y, z, Math.PI / 2], ['3010', COL.tan, x + 2.5, y, z, Math.PI / 2]); }
     }
     // the river: blue tiles along the centre-line, sandy banks
-    for (let x = -420; x <= 420; x += 2) { const zc = riverZ(x); for (let dz = -6; dz <= 6; dz += 2) { const z = Math.round((zc + dz) / 2) * 2; if (!clear(x, z, 34)) continue; l.push(['3068b', Math.abs(dz) > 5 ? COL.tan : '#3d7fd0', x, .02, z]); } }
+    for (let x = -420; x <= 420; x += 2) { const zc = riverZ(x); for (let dz = -6; dz <= 6; dz += 2) { const z = Math.round((zc + dz) / 2) * 2; if (!clear(x, z, 34)) continue; if (Math.abs(dz) > 5) l.push(['3068b', COL.tan, x, .02, z]); } }
     // TOWN: a street grid of houses (60% of lots)
     for (let gx = -150; gx <= -40; gx += 9) for (let gz = 40; gz <= 190; gz += 9) { const i = gx * 31 + gz; if (!clear(gx, gz, 40) || Math.abs(gx + 95) < 10 && Math.abs(gz - 120) < 16) continue;
       if (rnd(i) < .6) house(l, gx, gz, i, [COL.white, COL.tan, COL.mustard, '#f0c8a8', COL.ltblue, '#e8b4b8'][Math.abs(i) % 6]); else if (rnd(i + 1) < .5) tree(l, gx, gz, i); }
@@ -100,6 +100,22 @@
     u.cable.scale.y = drop; u.cable.position.y = -drop / 2; u.load.position.y = -drop - .2;
     put(cr, x + 6, 0, z + 6);
   }
+  // the river: a translucent trans-blue tile bed (merged once) + round tiles drifting downstream as ripples and foam
+  const riverBed = () => { const l = []; for (let x = -420; x <= 420; x += 2) { const zc = riverZ(x); for (let dz = -4; dz <= 4; dz += 2) { const z = Math.round((zc + dz) / 2) * 2; if (clear(x, z, 34)) l.push(['3068b', '#2f6fc4', x, .02, z]); } }
+    const g = build(l); g.traverse(o => { if (o.isMesh) o.material = plastic('#3a7fd8', { transparent: true, opacity: .82, roughness: .08, clearcoat: 1, clearcoatRoughness: .03 }); }); return g; };
+  const RIPPLES = 260;
+  const ripples = () => { const im = new THREE.InstancedMesh(partGeo('98138'), plastic('#cfe6ff', { transparent: true, opacity: .85, roughness: .1 }), RIPPLES); im.frustumCulled = false; const g = new THREE.Group(); g.add(im); g.userData.im = im; return g; };
+  function flow(t) {
+    const r = keep('ripples', ripples), im = r.userData.im, M = new THREE.Matrix4(), q = new THREE.Quaternion(), c = window.__camLook || [0, 0, 0];
+    let n = 0;
+    for (let i = 0; i < RIPPLES * 3 && n < RIPPLES; i++) {
+      const x = ((hash(i) * 840 + t * (6 + 3 * hash(i + 1))) % 840) - 420, z = riverZ(x) + (hash(i + 2) - .5) * 7;
+      if (Math.hypot(x - c[0], z - c[2]) > 140 || !clear(x, z, 34)) continue;
+      const k = frac(t * .7 + hash(i + 3)), s = .6 + .5 * Math.sin(k * Math.PI);   // each ripple swells and fades as it drifts
+      M.compose(new THREE.Vector3(x, .3 + .05 * Math.sin(t * 3 + i), z), q, new THREE.Vector3(s, 1, s)); im.setMatrixAt(n++, M);
+    }
+    im.count = n; im.instanceMatrix.needsUpdate = true; put(r);
+  }
   const BOATS = 4;
   function boats(t) { for (let i = 0; i < BOATS; i++) { const x = ((t * 3 + i * 210) % 840) - 420, z = riverZ(x) + (i % 2 ? 1.5 : -1.5);
     if (!camNear(x, z, 170)) continue; const b = keep('boat' + i, () => build([['3020', [COL.red, COL.white, COL.blue, COL.mustard][i], 0, .5, 0, 0], ['3004', COL.white, 0, 1.7, 0, 0]]));
@@ -116,7 +132,7 @@
     put(keep('country-statics', statics));
     put(keep('country-city', city));
     for (const [x, z, f, i] of CRANES) if (camNear(x, z, 260)) craneSite(x, z, f, i, t);
-    boats(t);
+    put(keep('river-bed', riverBed)); flow(t); boats(t);
     for (const [name, x, z, ry] of EGG_AT) if (camNear(x, z, 140)) EGGS[name]('bg', t, x, z, ry);
     for (const [x, z, ry, lines] of BILLBOARDS) if (camNear(x, z, 220)) EGGS.billboard(lines.join('|'), t, x, z, ry, lines);
     // town life: people strolling the plaza, a tractor in the fields

@@ -80,3 +80,5 @@ LOOPS.heads = t => {
 };
 LOOPS.heads.len = 4;
 window.HEAD_IDS=["3626cp01", "3626cp03", "3626cp04", "3626cp05", "3626cp0a", "3626cp0b", "3626cp0c", "3626cp70", "3626cp71", "3626cp72", "3626cp73", "3626cp76", "3626cp78", "3626cp7a", "3626cp7b", "3626cp7j", "3626cp7l", "3626cp7p", "3626cp7s", "3626cp80", "3626cp81", "3626cp83", "3626cp85", "3626cp87", "3626cp88", "3626cp8b", "3626cp8d", "3626cp8e", "3626cp8j", "3626cp8m", "3626cp8q", "3626cp8s", "3626cp8t", "3626cp7e", "3626cp7k", "3626cp75"];
+LOOPS.river = t => { cam({ pos: [-60, 9, -70], look: [-85, 0, -96], fov: 34, blur: .4, focus: [-85, 0, -96] }); look({ ...WORLD.LOOK.stage }); };
+LOOPS.river.len = 4; LOOPS.river.world = true;

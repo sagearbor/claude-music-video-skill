@@ -31,7 +31,8 @@ const view = (n, pos, lookAt, fov, lk) => ({ pos: at(n, ...pos), look: at(n, ...
 // Seam flights. Times are seconds of song time.
 const F = {
   // drops: smooth glides that arrive on the drop beat (t1 = the drop); the incoming chapter adds the bump + flash on landing
-  F0: { t0: 23.20, t1: 25.69, A: view('stage', [-24, 9, 46], [-6, 5, -6], 34, 'menu'), B: view('stage', [-2, 6, 28], [-2, 4, -4], 32, 'stage') },
+  F0: { t0: 24.30, t1: 25.69, whip: true,   // chorus 1 is the biggest boom: a whip that arrives at full speed
+    A: view('stage', [-24, 9, 46], [-6, 5, -6], 34, 'menu'), B: view('stage', [-2, 6, 28], [-2, 4, -4], 32, 'stage') },
   Fz: { t0: 74.40, t1: 76.83, A: view('zoo', [0, 14, 30], [0, 8, 0], 36, 'zoo'), B: view('stage', [0, 6, 30], [0, 4, -4], 34, 'stage2') },
   Fb: { t0: 135.70, t1: 138.11, A: view('bliss', [0, 12, 26], [0, 10, 0], 36, 'bliss'), B: view('stage', [0, 6, 30], [0, 4, -4], 34, 'sunrise') },
   F1: { t0: 35.10, t1: 37.10, A: view('stage', [0, 14, 26], [3, 14, 0], 38, 'stage'), B: view('zoo', [0, 6, 26], [0, 4, 0], 34, 'zoo') },
@@ -39,10 +40,12 @@ const F = {
   F3: { t0: 116.60, t1: 118.60, A: view('doom', [0, 10, 26], [0, 6, 0], 36, 'doom'), B: view('bliss', [0, 6, 24], [0, 4, 0], 34, 'bliss') },
   F4: { t0: 167.55, t1: 169.35, A: view('roast', [0, 10, 26], [0, 6, 0], 36, 'roast'), B: view('farm', [0, 7, 28], [0, 4, 0], 34, 'farm') },
   F5: { t0: 187.90, t1: 190.70, A: view('farm', [0, 30, 20], [0, 60, -10], 40, 'farm'), B: view('moon', [0, 8, 30], [0, 4, 0], 36, 'moon') },
+  Fm: { t0: 214.30, t1: 215.60, A: view('moon', [8, 8, 28], [0, 4, 0], 34, 'moon'), B: view('moon', [-4, 6, 22], [0, 4.5, 0], 34, 'moon') },   // c09 → c10, same district
   F6: { t0: 248.40, t1: 250.60, A: view('moon', [0, 20, 40], [0, 30, 0], 40, 'final'), B: view('desk', [0, 6, 22], [0, 4, 0], 32, 'night') },
 };
 function flight(id, t) {
   const f = F[id];
+  if (f.whip) return fly(t, f.t0, f.t1, f.A, f.B, { arc: 6, ease: k => k * k * k });   // accelerates INTO the beat; the landing bump stops it
   return fly(t, f.t0, f.t1, f.A, f.B, { arc: id === 'F5' ? 160 : undefined });
 }
 // landing(t, tDrop): the hit at a drop: { shake: [dx, dy, dz] (a short camera bump), flash: 0..1 (a .15 s white flash) }

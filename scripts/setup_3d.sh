@@ -23,4 +23,17 @@ if [ ! -f "$LDRAW/parts/3001.dat" ]; then
 fi
 cat "$HERE/template3d/parts.txt" > "$DIR/parts/.list"; [ -f "$DIR/parts.txt" ] && cat "$DIR/parts.txt" >> "$DIR/parts/.list"
 python3 "$HERE/scripts/ldraw_bake.py" --lib "$LDRAW" --out "$DIR/parts" --list "$DIR/parts/.list" --js >/dev/null
-echo "3D engine ready in $DIR ($(ls "$DIR"/parts/*.json | wc -l | tr -d ' ') parts baked). Chapters go in scenes3d/, one <script type=module> tag each in studio.html."
+# bevelled edges: Blender bakes them once into the parts (the bake-off showed they are most of the "real brick" look)
+if command -v blender >/dev/null; then blender -b -P "$HERE/scripts/bevel_parts.py" -- "$DIR/parts" 2>/dev/null | tail -1
+else echo "note: Blender not found, parts stay unbevelled (brew install --cask blender, then re-run this script)"; fi
+# starter scenes: the one-world layout (districts + seam flights), the countryside, the --design sheets; and the agent guide
+for f in world.js country.js design.js; do [ -f "$DIR/scenes3d/$f" ] || cp "$HERE/template3d/scenes/$f" "$DIR/scenes3d/$f"; done
+[ -f "$DIR/CHAPTER_GUIDE.md" ] || cp "$HERE/template3d/CHAPTER_GUIDE.md" "$DIR/CHAPTER_GUIDE.md"
+python3 - "$DIR/studio.html" <<'PY'
+import sys, pathlib
+p = pathlib.Path(sys.argv[1]); s = p.read_text()
+tags = "".join(f'<script type="module" src="scenes3d/{n}.js"></script>\n' for n in ("world", "country", "design") if f"scenes3d/{n}.js" not in s)
+s = s.replace("<!-- SCENES: one module tag per chapter file, in song order -->\n", "<!-- SCENES: one module tag per chapter file, in song order -->\n" + tags)
+p.write_text(s)
+PY
+echo "3D engine ready in $DIR ($(ls "$DIR"/parts/*.json | grep -vc raw.json | tr -d ' ') parts baked). Chapters go in scenes3d/, one <script type=module> tag each in studio.html."
