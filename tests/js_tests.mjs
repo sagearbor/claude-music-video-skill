@@ -30,7 +30,12 @@ test('fly starts at A and ends at B (seam contract)', () => { const A = { pos: [
 test('dances are pure and beat-locked', () => { for (const n of Object.keys(ctx.M.DANCES)) { const a = ctx.M.dance(n, 31.4), b = ctx.M.dance(n, 31.4); if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(n);
     const one = ctx.M.dance(n, 31.4 + 4 * ctx.BEAT), per = n === 'sprinkler' || n === 'dab' || n === 'disco' || n === 'robot' || n === 'jump' || n === 'spin' ? null : one;   // most repeat every 4 beats
     if (per) for (const k of Object.keys(a)) if (typeof a[k] === 'number') near(a[k], per[k], 1e-6); } });
-test('dab snaps to its pose within .2 beat of the downbeat', () => { const b0 = ctx.OFF + 8 * ctx.BEAT, p = ctx.M.dance('dab', b0 + .2 * ctx.BEAT); near(p.armR, 2.3, .05); });
+test('dab reaches its pose within .35 beat of the downbeat', () => { const b0 = ctx.OFF + 8 * ctx.BEAT, p = ctx.M.dance('dab', b0 + .35 * ctx.BEAT); near(p.armR, 2.3, .05); });
+test('no dance moves a joint more than 1 rad in one frame (a bigger jump reads as a glitch)', () => {
+  for (const n of Object.keys(ctx.M.DANCES)) { if (n === 'spin') continue; let prev = ctx.M.dance(n, 30);
+    for (let f = 1; f < 24 * 8; f++) { const p = ctx.M.dance(n, 30 + f / 24);
+      for (const k of Object.keys(p)) if (typeof p[k] === 'number' && typeof prev[k] === 'number' && Math.abs(p[k] - prev[k]) > 1) throw new Error(`${n}.${k} jumps ${Math.abs(p[k] - prev[k]).toFixed(2)} rad at frame ${f}`);
+      prev = p; } } });
 test('walk legs counter-swing and stay in range', () => { for (let ph = 0; ph < 1; ph += .05) { const w = ctx.M.walk(ph); near(w.legL, -w.legR); if (Math.abs(w.legL) > .6 || w.bodyY < 0) throw new Error(ph); } });
 test('unknown dance throws a helpful error', () => { try { ctx.M.dance('moonwalk', 1); throw new Error('no throw'); } catch (e) { if (!/unknown dance/.test(e.message)) throw e; } });
 process.exit(fails ? 1 : 0);

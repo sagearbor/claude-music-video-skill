@@ -133,11 +133,11 @@
     put(keep('country-city', city));
     for (const [x, z, f, i] of CRANES) if (camNear(x, z, 260)) craneSite(x, z, f, i, t);
     put(keep('river-bed', riverBed)); flow(t); boats(t);
-    for (const [name, x, z, ry] of EGG_AT) if (camNear(x, z, 140)) EGGS[name]('bg', t, x, z, ry);
-    for (const [x, z, ry, lines] of BILLBOARDS) if (camNear(x, z, 220)) EGGS.billboard(lines.join('|'), t, x, z, ry, lines);
+    for (const [name, x, z, ry] of EGG_AT) if (camNear(x, z, 330)) EGGS[name]('bg', t, x, z, ry);
+    for (const [x, z, ry, lines] of BILLBOARDS) if (camNear(x, z, 360)) EGGS.billboard(lines.join('|'), t, x, z, ry, lines);
     // town life: people strolling the plaza, a tractor in the fields
-    if (camNear(-95, 125, 150)) for (let j = 0; j < 5; j++) passerby('plaza', j, t, [[-103, 120], [-87, 120], [-87, 132], [-103, 132]], 1.2);
-    if (camNear(300, -60, 200)) { const k = frac(t / 40), x = 275 + 70 * (k < .5 ? k * 2 : 2 - k * 2), tr = keep('tractor', () => build([['3020', COL.green, 0, 1.2, 0, Math.PI / 2], ['3003', COL.green, 0, 2.4, -.5, 0], ['3062b', COL.black, -1.5, 1.2, 1], ['3062b', COL.black, 1.5, 1.2, 1], ['3062b', COL.black, -1.5, 1.2, -1], ['3062b', COL.black, 1.5, 1.2, -1]]));
+    if (camNear(-95, 125, 300)) for (let j = 0; j < 5; j++) passerby('plaza', j, t, [[-103, 120], [-87, 120], [-87, 132], [-103, 132]], 1.2);
+    if (camNear(300, -60, 360)) { const k = frac(t / 40), x = 275 + 70 * (k < .5 ? k * 2 : 2 - k * 2), tr = keep('tractor', () => build([['3020', COL.green, 0, 1.2, 0, Math.PI / 2], ['3003', COL.green, 0, 2.4, -.5, 0], ['3062b', COL.black, -1.5, 1.2, 1], ['3062b', COL.black, 1.5, 1.2, 1], ['3062b', COL.black, -1.5, 1.2, -1], ['3062b', COL.black, 1.5, 1.2, -1]]));
       put(tr, x, 0, -40, k < .5 ? Math.PI / 2 : -Math.PI / 2); }
     // road walkers near the camera
     const c = window.__camLook || [0, 0, 0];

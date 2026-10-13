@@ -6,6 +6,13 @@
 //                                clap, shrug, jump, spin, sway
 //   blend(a, b, k)               mix two poses (numbers lerp; faces/held props switch at k = .5)
 //   crowdDance(i, t)             a varied dance for crowd member i (different move + offset per person)
+// INTERACTIONS (one thing acting on another: kicks, hand-overs, pushes, writing) must physically meet. Use these + expect():
+//   stepTo(t, plan, o)           walk/run a figure along timed waypoints plan = [[t, [x, z]], ...]: returns { x, z, ry, pose }
+//                                with the walk phase driven by distance travelled (no foot sliding); stands still between legs
+//   kickAt(t, tHit, target, o)   where to stand + the pose so the RIGHT FOOT touches target [x,y,z] exactly at tHit
+//                                (o.from: [x, z] where the kicker comes from; walks in over o.lead s). Returns { x, z, ry, pose }
+//   handoff(t, t0, t1, from, to) a prop's world position travelling from point `from` to `to` (e.g. two limb() hands) over
+//                                [t0, t1] on a small arc; before t0 = from, after t1 = to. Pair it with expect() on both hands.
 // Smooth by default (24 fps). For the stop-motion "on twos" feel, pass st(t) instead of t.
 const TAU = Math.PI * 2;
 const sn = x => Math.sin(x * TAU), cs = x => Math.cos(x * TAU);
@@ -35,19 +42,20 @@ const DANCES = {
   // a hop on every beat, arms pumping
   bounce: b => { const p = Math.exp(-frac(b) * 5); return { bodyY: .32 * Math.abs(Math.sin(Math.PI * b)), armL: .5 + .7 * p, armR: .5 + .7 * p, headTilt: -.15 * p, bodyRoll: .05 * sn(b / 2) }; },
   // snap into a dab on the beat, alternate sides every 2 beats
-  dab: (b, o) => { const side = (Math.floor(b / 2) % 2 ? -1 : 1) * (o.side || 1), k = ease(Math.min(1, frac(b / 2) * 2 / .18));
-    const D = side > 0 ? { armR: 2.3, armRz: 1.1, armL: 1.7, armLz: -.75, head: -.45, headTilt: .45, lean: .18, bodyRoll: -.08 }
-      : { armL: 2.3, armLz: 1.1, armR: 1.7, armRz: -.75, head: .45, headTilt: .45, lean: .18, bodyRoll: .08 };
-    return blend({ armL: .3, armR: .3 }, D, k); },
+  dab: (b, o) => { const n = Math.floor(b / 2), side = (n % 2 ? -1 : 1) * (o.side || 1), k = ease(Math.min(1, frac(b / 2) * 2 / .32));
+    const R = { armR: 2.3, armRz: 1.1, armL: 1.7, armLz: -.75, head: -.45, headTilt: .45, lean: .18, bodyRoll: -.08 },
+      L = { armL: 2.3, armLz: 1.1, armR: 1.7, armRz: -.75, head: .45, headTilt: .45, lean: .18, bodyRoll: .08 };
+    return blend(side > 0 ? L : R, side > 0 ? R : L, k); },   // from the previous side's dab, never from rest (no pop)
   // arms swing side to side together while the hips go the other way, twice a beat
   floss: b => { const s = sn(b), h = sn(b + .25); return { armL: .35, armR: .35, armLz: .65 * s, armRz: -.65 * s, twist: .25 * h, bodyRoll: -.12 * s, bodyY: .05 * Math.abs(s) }; },
-  // staccato: every half beat a new rigid pose
-  robot: b => { const q = Math.floor(b * 2), r = k => hash(q * 13 + k) - .5, e = ease(Math.min(1, frac(b * 2) / .1));
-    return { armL: 1.57 + r(1) * 1.4 * e, armR: 1.57 + r(2) * 1.4 * e, armLz: .2, armRz: .2, twist: r(3) * .8 * e, head: r(4) * 1.0 * e, headTilt: r(5) * .3, lean: .05, face: 'neutral' }; },
-  // the disco point: up-out on one beat, down-across on the next
-  disco: b => { const up = Math.floor(b) % 2 === 0, k = ease(Math.min(1, frac(b) / .15));
-    return blend({ armR: 1, armRz: .2 }, up ? { armR: 2.7, armRz: .55, head: -.3, headTilt: -.2, bodyRoll: -.1 } : { armR: .4, armRz: -.5, head: .3, headTilt: .25, bodyRoll: .1 }, k);
-    },
+  // staccato: every half beat a new rigid pose, blended from the previous one
+  robot: b => { const q = Math.floor(b * 2), r = k => hash(q * 13 + k) - .5, rp = k => hash((q - 1) * 13 + k) - .5, e = ease(Math.min(1, frac(b * 2) / .35));
+    const m = (k, a) => lerp(rp(k), r(k), e) * a;
+    return { armL: 1.57 + m(1, 1.4), armR: 1.57 + m(2, 1.4), armLz: .2, armRz: .2, twist: m(3, .8), head: m(4, 1.0), headTilt: m(5, .3), lean: .05, face: 'neutral' }; },
+  // the disco point: up-out on one beat, down-across on the next (each blends from the other)
+  disco: b => { const up = Math.floor(b) % 2 === 0, k = ease(Math.min(1, frac(b) / .3));
+    const U = { armR: 2.7, armRz: .55, head: -.3, headTilt: -.2, bodyRoll: -.1 }, D = { armR: .4, armRz: -.5, head: .3, headTilt: .25, bodyRoll: .1 };
+    return blend(up ? D : U, up ? U : D, k); },
   // the running man: legs alternate kick/slide each half beat, arms pump
   runningMan: b => { const s = sn(b / 2); return { legL: .7 * s, legR: -.7 * s, armL: .9 - .6 * s, armR: .9 + .6 * s, bodyY: .18 * Math.abs(sn(b)), lean: .08 }; },
   // the sprinkler: hand behind head, the other arm ratchets across in 3 steps then whips back (4 beats)
@@ -71,4 +79,33 @@ function dance(name, t, o = {}) {
 const CROWD_MOVES = ['bounce', 'floss', 'disco', 'dab', 'runningMan', 'robot', 'clap', 'headbang', 'sprinkler', 'wave'];
 function crowdDance(i, t, moves = CROWD_MOVES) { return { ...dance(moves[i % moves.length], t, { offset: (i % 3) * .5, side: i % 2 ? -1 : 1 }), face: ['joy', 'sing', 'wink', 'star'][i % 4] }; }
 
-Object.assign(window, { walk, run, dance, DANCES, blend, crowdDance, snap });
+const STRIDE = 2.2;   // studs per walk cycle (2 steps): phase = distance / STRIDE keeps the feet planted
+function stepTo(t, plan, o = {}) {
+  const pts = plan, n = pts.length; let dist = 0, x = pts[0][1][0], z = pts[0][1][1], ry = o.ry0 ?? 0, amp = 0;
+  for (let i = 1; i < n; i++) {
+    const [t0, a] = pts[i - 1], [t1, b] = pts[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (t <= t0) break;
+    // stride grows with speed so the cadence never passes ~3 cycles/s (faster than that, legs flip between frames)
+    const stride = Math.max(STRIDE, L / (t1 - t0) / 3 * 1.5), u = Math.min(1, (t - t0) / (t1 - t0)), k = ease(u); dist += L * k * STRIDE / stride; x = lerp(a[0], b[0], k); z = lerp(a[1], b[1], k);
+    if (L > .01) ry = Math.atan2(b[0] - a[0], b[1] - a[1]);
+    amp = t < t1 && L > .01 ? Math.min(1, u / .2, (1 - u) / .2) : 0;   // the stride grows and settles with the speed (no snap to rest)
+  }
+  if (amp === 0 && o.face != null) ry = o.face;
+  const gait = (o.run ? run : walk)(dist / STRIDE * (o.run ? .8 : 1));
+  return { x, z, ry, pose: amp > 0 ? blend({ legL: 0, legR: 0, armL: 0, armR: 0, bodyY: 0, lean: 0, twist: 0, bodyRoll: 0 }, gait, amp) : {} };
+}
+const KICK_REACH = 1.55;   // a minifig's toe is about 1.55 studs in front of its hips at full kick (legR 1.4 rad)
+function kickPose(u) {   // u: seconds relative to the hit: wind-up before, strike at 0, recover after
+  const wind = Math.max(0, Math.min(1, (u + .3) / .2)), strike = u < -.1 ? 0 : u <= 0 ? ease((u + .1) / .1) : 1 - ease(Math.min(1, u / .35));
+  return { legR: -.5 * wind * (1 - strike) + 1.4 * strike, armL: .7 * strike, armR: -.5 * strike, lean: -.18 * strike };
+}
+function kickAt(t, tHit, target, o = {}) {
+  const from = o.from || [target[0], target[2] + 6], dir = Math.atan2(target[0] - from[0], target[2] - from[1]);
+  const sx = target[0] - Math.sin(dir) * KICK_REACH, sz = target[2] - Math.cos(dir) * KICK_REACH, lead = o.lead ?? 1.0;
+  const s = stepTo(t, [[tHit - lead - .4, from], [tHit - .4, [sx, sz]]], { face: dir, run: o.run });
+  return { ...s, pose: { ...s.pose, ...(t > tHit - .45 && t < tHit + .6 ? kickPose(t - tHit) : {}) } };
+}
+function handoff(t, t0, t1, from, to, arc = .6) {
+  const k = ease(Math.min(1, Math.max(0, (t - t0) / (t1 - t0)))); return [lerp(from[0], to[0], k), lerp(from[1], to[1], k) + Math.sin(Math.PI * k) * arc, lerp(from[2], to[2], k)];
+}
+Object.assign(window, { walk, run, dance, DANCES, blend, crowdDance, snap, stepTo, kickAt, kickPose, KICK_REACH, handoff, STRIDE });

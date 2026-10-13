@@ -47,7 +47,9 @@ const EGGS = {
         M.compose(new E3.Vector3(Math.cos(a) * r, .1 + h + hash(i + 3) * .2, Math.sin(a) * r), q.setFromEuler(e.set(Math.PI / 2 + (hash(i + 1) - .5), hash(i + 2) * 6, 0)), new E3.Vector3(1, 1, 1)); im.setMatrixAt(i, M); }
       const g = new E3.Group(); g.add(im); g.userData.im = im; return g; });
     pile.userData.im.count = n; put(pile, x + 11, 0, z + 2.5, ry);
-    for (let i = 0; i < 3; i++) { const c = keep(`pc-move${key}${i}`, () => { const m = new E3.Mesh(geo, SILVER()); m.castShadow = true; return m; }), k = frac(t * .5 + i / 3); c.rotation.set(Math.PI / 2, 0, 0); put(c, x + 8 + k * 3, 1.2, z + 2.5, ry + k * 3); c.rotation.x = Math.PI / 2; }
+    // conveyor clips loop: they shrink to nothing at the wrap point, so the jump back to the start is never seen
+    for (let i = 0; i < 3; i++) { const c = keep(`pc-move${key}${i}`, () => { const m = new E3.Mesh(geo, SILVER()); m.castShadow = true; return m; }), k = frac(t * .5 + i / 3), sc = Math.min(1, k / .12, (1 - k) / .12);
+      put(c, x + 8 + k * 3, 1.2, z + 2.5, ry + k * 3, Math.max(.001, sc)); c.rotation.x = Math.PI / 2; }
   },
   // the red camera eye on a black panel; it tracks slowly
   halEye(key, t, x, z, ry = 0, y = 0) {

@@ -107,6 +107,7 @@ function makeFig(look) {
   for (const [side, id] of [['R', '3816'], ['L', '3817']]) {
     const pv = new T3.Group(); pv.position.copy(L(0, 44, 0)); body.add(pv); pv.add(part(id, look.legs || COL.navy)); J['leg' + side] = pv;
     const fill = new T3.Mesh(new T3.BoxGeometry(.78, 1.6, .8), plastic(look.legs || COL.navy)); fill.position.set(side === 'R' ? -.525 : .525, -.62, .02); pv.add(fill);   // plug the hollow leg back
+    const foot = new T3.Group(); foot.position.set(side === 'R' ? -.525 : .525, -1.25, .5); pv.add(foot); J['foot' + side] = foot;   // toe anchor: limb(f, 'footR')
   }
   const upper = new T3.Group(); body.add(upper); J.upper = upper;                                       // torso + arms + head (leans)
   upper.add(part('973', look.torso || COL.teal));
@@ -129,11 +130,11 @@ function makeFig(look) {
   if (look.hat === 'beanie') { const h = part('41334', look.hatCol || COL.mustard); h.position.set(0, 0, 0); neck.add(h); J.hat = h; }
   else if (look.hat === 'hair') { const h = part('62810', look.hairCol || COL.brown); neck.add(h); J.hat = h; }
   if (look.pencil) { const p = pencil(.42); p.position.set(-.72, -.42, -.6); p.rotation.set(1.42, 0, .12); neck.add(p); J.earPencil = p; }   // behind the right ear, along the head
-  g.userData = { J, look };
+  g.userData = { J, look, actor: 'fig:' + (look.key || look.faceId || look.head || 'fig') };
   if (look.scale) g.scale.setScalar(look.scale);
   return g;
 }
-function fig(key, look) { return keep('fig:' + key, () => makeFig(look)); }
+function fig(key, look) { return keep('fig:' + key, () => { const f = makeFig(look); f.userData.actor = 'fig:' + key; return f; }); }
 const REST = { legL: 0, legR: 0, armL: 0, armR: 0, armLz: 0, armRz: 0, handL: 0, handR: 0, head: 0, headTilt: 0, headRoll: 0, lean: 0, twist: 0, bodyY: 0, bodyRoll: 0, bodyYaw: 0, face: 'neutral' };
 function pose(f, p = {}) {
   const { J, look } = f.userData, q = { ...REST, ...p };
@@ -215,7 +216,7 @@ function makeClawd(o = {}) {
   J.hats = {}; for (const [k, f] of Object.entries(hats)) { J.hats[k] = f(); body.add(J.hats[k]); }
   g.userData = { J }; if (o.scale) g.scale.setScalar(o.scale); return g;
 }
-function clawd(key, o) { return keep('clawd:' + key, () => makeClawd(o)); }
+function clawd(key, o) { return keep('clawd:' + key, () => { const c = makeClawd(o); c.userData.actor = 'clawd:' + key; return c; }); }
 function clawdPose(c, p = {}) {
   const { J } = c.userData, walk = p.walk;
   J.legs.forEach((lg, i) => { lg.rotation.set(walk != null ? .45 * Math.sin((walk + (i % 2) * .5) * Math.PI * 2) : 0, 0, 0); });
@@ -302,7 +303,9 @@ function birdPose(b, flap) { const a = .8 * Math.sin(flap * Math.PI * 2); b.user
 
 // Props pre-oriented for a minifig hand: pose(f, { armR: 1.0, holdR: heldPencil('k') }). The hand's grip axis is local y.
 //   heldPencil: upright in the fist (point up). heldHandset: at the ear when armR ≈ 1.55 (talking into it).
-const heldPencil = (key = 'p', s = .55) => keep('heldPencil:' + key, () => { const g = new T3.Group(), p = pencil(s); p.position.y = -.6 * s / .42; g.add(p); return g; });
+//   heldPencil(key, s, { write: true }): POINT DOWN, for writing/scribbling (point up reads as an eraser when writing!).
+const heldPencil = (key = 'p', s = .55, o = {}) => keep('heldPencil:' + key + (o.write ? ':w' : ''), () => { const g = new T3.Group(), p = pencil(s);
+  if (o.write) { p.rotation.x = Math.PI; p.position.y = .6 * s / .42 + .3; } else p.position.y = -.6 * s / .42; g.add(p); return g; });
 const heldHandset = (key = 'h', col) => keep('heldHandset:' + key, () => { const g = new T3.Group(), h = handset(col); h.rotation.set(0, 0, Math.PI / 2); h.scale.setScalar(.38); g.add(h); return g; });
 
 // ---------- ambient life: building sites and fields (pure functions of song time) ----------

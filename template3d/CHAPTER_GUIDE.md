@@ -39,10 +39,30 @@ If you need something shared, write it inside your own file (local helpers are f
 8. **Performance**: stay under ~80 ms/frame in the sheets' `ms/frame` (the bake-off shot is ~36 ms). Don't create geometry per frame
    except tiny things (e.g. the scroll); use `keep`.
 
+9. **Interactions must physically meet** (the #1 complaint on the first cut: kicks into thin air, keys blinking between hands
+   that weren't near each other, a pencil held upside down "writing" with the eraser). Whenever one thing acts on another:
+   - kicks: `kickAt(t, tHit, target, { from })` walks the figure in and lands the RIGHT FOOT on `target` exactly at tHit;
+   - hand-overs: both figures step close (`stepTo`), hands meet, and the prop travels `handoff(t, t0, t1, limb(a, 'handR'), limb(b, 'handL'))`;
+   - writing/scribbling: `heldPencil(key, s, { write: true })` (point DOWN), the tip on the paper;
+   - and assert it: `expect('pip kicks door 2', limb(P, 'footR'), doorFace, .6)` on the contact frames. Failed expects print
+     warnings in every sheet and fail the continuity linter.
+10. **Entrances and exits are physical**: walk, run or jump in from off-screen, or through a door/hatch/puff. Never rise through
+    a solid floor (legs appear later), never appear or vanish in plain view. Costume swaps happen off-screen or under a
+    covering effect (smoke puff, confetti burst), never as a silent swap of one figure for another.
+11. **Looping motion hides its wrap** (conveyors, confetti, birds, ripples): scale to ~0 or go off-screen before jumping back.
+12. **Shot boundaries** are blended automatically by the engine (0.25 s, actors that moved < 6 studs), but a jump INSIDE a shot
+    function (an if/else on time that moves a figure) is not: plan positions with `stepTo()` so nobody teleports.
+13. **The continuity gate.** Before reporting, run `node tools/continuity.mjs --range=<your start>:<your end>`. It simulates
+    every frame and must report **0 problems** (TELEPORT, SNAP, UNDERGROUND, CONTACT). Review every POP and say in your report
+    why each one is intended. Sparse contact sheets cannot see a 1-frame pop; this tool can. Your district is visible from
+    other chapters' time ranges too (on the horizon, during flights): also lint the neighbouring chapters' ranges. The
+    orchestrator runs the whole-song lint as the final gate.
+
 ## Review loop (contact sheets ONLY into out/check/<chapter>_*.jpg; never out/frames, never MP4s)
 ```
 node render.mjs --sheet=a,b,c,... --cols=4 --w=480 --out=out/check/cNN_a.jpg        # look at it with the Read tool
 node render.mjs --strip=a:b --cols=6 --w=320 --out=out/check/cNN_strip.jpg         # every frame: motion check
 ```
 Do **at least 2 review passes** (framing, readability, seams at your boundaries ±0.04 s and ±0.3 s, karaoke clear, nothing
-static, no geometry popping in), then report: shot list with times, eggs placed, seam checks done, ms/frame, known weaknesses.
+static, no geometry popping in) **and a clean continuity gate**, then report: shot list with times, eggs placed, seam checks
+done, the continuity summary line (0 problems + each POP justified), ms/frame, known weaknesses.

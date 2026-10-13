@@ -25,9 +25,12 @@ district('stage', { at: STAGE, r: 90 }, t => {
   for (let i = 0; i < 4; i++) passerby('stage', i, t, [[-30, -18], [30, -18], [30, -24], [-30, -24]]);
 });
 
+// the kick assertion: on the hit frame, Pip's right toe must be on the door panel
+function EXPECT_KICK(P, t, H, target) { H.forEach((h, i) => { if (Math.abs(t - h) <= .5 / 24) expect('pip kicks door ' + (i + 1), limb(P, 'footR'), target(DOORS[i]), .7); }); }
+
 // ---------- shot ----------
 function chorus1(t, lt) {
-  const q = st(t);                                   // actors move on twos (12 fps): the stop-motion feel
+  const q = t;                                       // smooth 24 fps (stepping on twos made fast moves judder)
   // Doors (they stay blown off after their hit)
   DOORS.forEach((d, i) => {
     const u = keep('c02door' + i, () => doorUnit(d.col)); const before = t < d.hit;
@@ -36,41 +39,55 @@ function chorus1(t, lt) {
     const glow = keep('doorglow' + i, () => { const m = new THREE.Mesh(new THREE.PlaneGeometry(4, 7.1), glowMat(d.inside, 1.6)); return m; });
     put(glow, d.x + 2, .8 + 3.6, -6.3);
   });
-  // Pip
-  const P = fig('pip', PIP), pp = { face: 'determined', head: 0 }, px = kf(q, [[25.7, -2], [27.6, -2], [28.0, 0], [30.4, 0]]), pz = 1;
-  let pry = 0;
-  DOORS.forEach(d => { const k = seg(q, d.hit - .22, d.hit + .05) * (1 - seg(q, d.hit + .2, d.hit + .4));
-    if (q > d.hit - .3 && q < d.hit + .4) { pry = Math.atan2(d.x + 2 - px, -6 - pz) * .6; pp.legR = 1.3 * k; pp.armL = .6 * k; pp.armR = -.4 * k; pp.lean = -.15 * k; pp.face = 'angry'; } });
+  // Pip: ONE continuous run along the door row (the Nah!s are only .64 s apart): he plants at each door, turns, and his right
+  // toe lands on the panel exactly on the Nah! (kickPose + expect), then jogs back to centre for the dodges.
+  const P = fig('pip', PIP), pp = { face: 'determined', head: 0 };
+  const target = d => [d.x + 2, .8 + 1.35, -5.75];                       // the panel's front face, kick height
+  const H = DOORS.map(d => d.hit), STAND = DOORS.map(d => [d.x + 2, -5.75 + KICK_REACH]);
+  const plan = [[H[0] - .62, [-2, 1]], [H[0] - .1, STAND[0]], [H[0] + .1, STAND[0]], [H[1] - .1, STAND[1]], [H[1] + .1, STAND[1]], [H[2] - .1, STAND[2]], [H[2] + .4, STAND[2]], [H[2] + 1.3, [0, 1]]];
+  const pos = stepTo(t, plan, { run: true, face: 0 });
+  const near = H.reduce((m, h) => Math.abs(t - h) < Math.abs(t - m) ? h : m, H[0]), kickW = 1 - seg(Math.abs(t - near), .14, .32);
+  Object.assign(pp, blend(pos.pose, kickPose(t - near), kickW));
+  if (kickW > .5) pp.face = 'angry';
+  // face the door while kicking, the direction of travel while running
+  const dyaw = Math.atan2(Math.sin(Math.PI - pos.ry), Math.cos(Math.PI - pos.ry)), yaw = pos.ry + dyaw * kickW;
+  const px = pos.x, pz = pos.z;
   for (const th of THROWS) {                        // dodges: lean back / duck / side-step, timed to the pass
-    const k = ease(seg(q, th.at - .25, th.at)) * (1 - ease(seg(q, th.at + .3, th.at + .55)));
+    const k = ease(seg(t, th.at - .25, th.at)) * (1 - ease(seg(t, th.at + .3, th.at + .55)));
     if (k > 0) { if (th.dodge === 'lean') { pp.lean = -.55 * k; pp.armL = 1.2 * k; pp.armR = 1.2 * k; pp.bodyY = -.3 * k; }
-      if (th.dodge === 'duck') { pp.bodyY = -1.4 * k; pp.legL = 1.4 * k; pp.legR = 1.4 * k; pp.lean = .35 * k; }
+      if (th.dodge === 'duck') { pp.bodyY = -1.4 * k * k; pp.legL = 1.4 * k; pp.legR = 1.4 * k; pp.lean = .35 * k; }   // hips drop only as the legs fold
       if (th.dodge === 'side') { pp.bodyRoll = .45 * k; pp.armL = 2.2 * k; }
       pp.face = 'shocked'; }
   }
-  if (q >= 30.4 && q < 32.95) {                     // G: raps into the handset like a mic, bobbing on the beat
-    const b = pulse(t, 5); Object.assign(pp, { armR: 1.55, armL: .6 + .5 * b, bodyY: -.12 * b, headTilt: -.15 * b, face: beatPh(t) < .5 ? 'sing' : 'joy', holdR: heldHandset() });
+  if (t >= 30.2 && t < 32.95) {                     // G: raps into the handset like a mic, bobbing on the beat
+    // the handset comes out of the hoodie pocket (grows in at the hip), goes to the ear, and is tucked away at the end
+    const b = pulse(t, 5), k = ease(seg(t, 30.2, 30.45)), hs = heldHandset(), g = Math.min(1, seg(t, 30.2, 30.32), 1 - seg(t, 32.8, 32.95));
+    hs.scale.setScalar(Math.max(.001, g)); Object.assign(pp, { armR: 1.55 * k, armL: (.6 + .5 * b) * k, bodyY: -.12 * b, headTilt: -.15 * b, face: beatPh(t) < .5 ? 'sing' : 'joy', holdR: hs });
   }
-  if (q >= 32.95) {                                  // H: pencil out, scribble over the scroll
-    const sc = q > 33.55 && q < BURST ? Math.sin(q * 40) : 0;
-    Object.assign(pp, { face: q > BURST ? 'joy' : 'determined', armR: q > 33.3 ? 1.0 + .25 * sc : kf(q, [[32.95, 0], [33.3, 2.6]]), armRz: .15 * sc, head: .5, armL: q > BURST ? 2.8 : 0,
-      holdR: q > 33.2 ? heldPencil() : null });
+  if (t >= 32.95) {                                  // H: pencil from behind the ear, point DOWN, scribbling on the scroll
+    const sc = t > 33.55 && t < BURST ? Math.sin(t * 40) : 0, up = ease(seg(t, 32.95, 33.3));
+    // the arm continues from the rap pose (1.55): up to the ear (2.6) for the pencil, then down to the scroll (1.75), no jumps
+    const arm = kf(t, [[32.95, 1.55], [33.25, 2.6], [33.55, 1.75]]) + .12 * sc;
+    Object.assign(pp, { face: t > BURST ? 'joy' : 'determined', armR: arm, armRz: .12 * sc, head: .5 * ease(seg(t, 32.95, 33.3)), armL: t > BURST ? 2.8 * ease(seg(t, BURST, BURST + .2)) : lerp(.6, 0, ease(seg(t, 32.95, 33.2))),
+      holdR: t > 33.2 ? heldPencil('c02', .55, { write: true }) : null, noEarPencil: t > 33.2 });
   }
-  pose(P, pp); P.userData.J.earPencil && (P.userData.J.earPencil.visible = q < 33.2);
-  put(P, px, .8, pz, q >= 32.95 ? .9 : pry);
+  pose(P, pp);
+  put(P, px, .8, pz, t >= 32.95 ? .9 : yaw);
+  EXPECT_KICK(P, t, H, target);
   // throws: each object flies from front-right past Pip into the backdrop
   THROWS.forEach((th, i) => {
-    const o = keep('throw' + i, th.make), k = seg(t, th.at - .7, th.at + .5);
-    if (k <= 0 || k >= 1) return;
-    const a = [16, 5, 18], b = [px - 2 + i, 2.5, -20], x = lerp(a[0], b[0], k), z = lerp(a[2], b[2], k), y = lerp(a[1], b[1], k) + 5 * Math.sin(k * Math.PI);
+    const o = keep('throw' + i, th.make), k = Math.min(1, seg(t, th.at - .7, th.at + .5));   // after landing it lies there as debris
+    if (k <= 0) return;
+    const a = [16, 5, 18], b = [-2 + i * 2, .8, -20], x = lerp(a[0], b[0], k), z = lerp(a[2], b[2], k), y = lerp(a[1], b[1], k) + 5 * Math.sin(k * Math.PI);
     o.rotation.set(k * 7, k * 5, 0); put(o, x, y, z, k * 6, .55); o.rotation.x = k * 7;
   });
-  // the crowd pops up on beats 48–51 (two per beat) behind Pip
+  // the crowd RUNS IN from the wings on beats 48–51 (two per beat), arriving on the beat, then cheers
   for (let i = 0; i < 8; i++) {
-    const tb = bt(48 + Math.floor(i / 2)), k = backOut(seg(q, tb, tb + .25)); if (k <= 0) continue;
-    const f = fig('crowd' + i, crowdLook(i)), x = (i % 2 ? 1 : -1) * (3 + Math.floor(i / 2) * 2.4), z = -2.5 - (i % 3);
-    pose(f, { face: 'joy', armL: q > 31 ? 2.6 + .3 * Math.sin(q * 8 + i) : 0, armR: q > 31 ? 2.6 + .3 * Math.sin(q * 8 + i + 1) : 0, bodyY: -4 * (1 - k) + .25 * pulse(t, 8) });
-    put(f, px + x, .8, z, -x * .05);
+    const tb = bt(48 + Math.floor(i / 2)), x = (i % 2 ? 1 : -1) * (3 + Math.floor(i / 2) * 2.4), z = -2.5 - (i % 3), fromX = (i % 2 ? 1 : -1) * 34;   // start well outside the frame
+    if (t < tb - 1.1) continue;
+    const f = fig('crowd' + i, crowdLook(i)), s2 = stepTo(t, [[tb - 1.1, [fromX, z]], [tb, [x, z]]], { face: -x * .05, run: true }), cheer = t > tb ? ease(seg(t, tb, tb + .25)) : 0;
+    pose(f, { ...s2.pose, face: 'joy', armL: cheer * (2.6 + .3 * Math.sin(t * 8 + i)), armR: cheer * (2.6 + .3 * Math.sin(t * 8 + i + 1)), bodyY: (s2.pose.bodyY || 0) + .25 * cheer * pulse(t, 8) });
+    put(f, s2.x, .8, s2.z, s2.ry);
   }
   // Clawd slides in with the scroll (H)
   if (q >= 32.6) {

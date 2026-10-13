@@ -167,9 +167,13 @@ function growing(list) {
   return grp;
 }
 
+// limb(fig, 'footR'|'footL'|'handR'|'handL'|'head'): world position of that anchor in THIS frame (after put()/pose()).
+function limb(f, name) { const J = f.userData.J, o = J[name] || J['grip' + name.slice(-1)]; f.updateWorldMatrix(true, true); return o.getWorldPosition(new THREE.Vector3()).toArray(); }
+
 // ---------- frame registry ----------
 const CACHE = new Map();
-const keep = (key, make) => { if (!CACHE.has(key)) CACHE.set(key, make()); return CACHE.get(key); };
+// every cached Object3D is a tracked actor for tools/continuity.mjs (props included: a prop that blinks between two hands is a bug)
+const keep = (key, make) => { if (!CACHE.has(key)) { const o = make(); if (o?.isObject3D && !o.userData.actor) o.userData.actor = 'obj:' + key; CACHE.set(key, o); } return CACHE.get(key); };
 // put(obj, x, y, z, ry, s): add a cached object to this frame's world and set its transform. It OVERWRITES the object's
 // position/rotation/scale, so a mesh that needs its own fixed tilt (a ground plane, a sign) must sit inside a Group.
 function put(obj, x = 0, y = 0, z = 0, ry = 0, s = 1) {
@@ -340,11 +344,25 @@ function karaoke(t, ctx) {
 }
 
 // runShot(t): run whichever shot owns song time t (design loops use it to replay a shot, then override cam/look)
-function runShot(t) {
-  if (!SHOTS.length) return;
-  let i = 0; while (i + 1 < SHOTS.length && t >= SHOTS[i + 1][0]) i++;
-  const t0 = SHOTS[i][0], end = i + 1 < SHOTS.length ? SHOTS[i + 1][0] : DUR;
-  SHOTS[i][1](t, t - t0, end - t0);
+function shotIndex(t) { let i = 0; while (i + 1 < SHOTS.length && t >= SHOTS[i + 1][0]) i++; return i; }
+function callShot(i, t) { const t0 = SHOTS[i][0], end = i + 1 < SHOTS.length ? SHOTS[i + 1][0] : DUR; SHOTS[i][1](t, t - t0, end - t0); }
+function runShot(t) { if (SHOTS.length) callShot(shotIndex(t), t); }
+
+// SHOT-BOUNDARY BLEND: for SHOT_BLEND seconds after a shot starts, every actor that also existed at the previous shot's last
+// frame (and moved less than SHOT_BLEND_MAX studs) glides from that state to its new one, so a shot change never makes a body
+// or prop jump. Pure: the previous shot is simply evaluated at (start - 1 frame). Set SHOT_BLEND = 0 to switch it off.
+window.SHOT_BLEND = .25; window.SHOT_BLEND_MAX = 6;
+function snapshotActors() {
+  const snap = new Map();
+  ROOT.traverse(o => { const a = o.userData?.actor; if (!a) return; const J = o.userData.J, js = {};
+    if (J) for (const [k, g] of Object.entries(J)) if (g?.isObject3D && g !== o) js[k] = [g.position.clone(), g.quaternion.clone()];
+    snap.set(a, { p: o.position.clone(), q: o.quaternion.clone(), s: o.scale.clone(), js }); });
+  return snap;
+}
+function blendActors(snap, k) {
+  ROOT.traverse(o => { const a = o.userData?.actor, b = a && snap.get(a); if (!b || b.p.distanceTo(o.position) > window.SHOT_BLEND_MAX) return;
+    o.position.lerpVectors(b.p, o.position, k); o.quaternion.slerpQuaternions(b.q, o.quaternion, k); o.scale.lerpVectors(b.s, o.scale, k);
+    const J = o.userData.J; if (J) for (const [key, [p, q]] of Object.entries(b.js)) { const g = J[key]; if (!g?.isObject3D) continue; g.position.lerpVectors(p, g.position, k); g.quaternion.slerpQuaternions(q, g.quaternion, k); } });
 }
 
 // ---------- one frame ----------
@@ -352,16 +370,47 @@ const OVERLAYS = [];          // screen-space 2D draws after the 3D frame: overl
 const overlay = fn => OVERLAYS.push(fn);
 let FRAME_OVERLAYS = [];
 const hud = fn => FRAME_OVERLAYS.push(fn); // per-frame screen draw from inside a shot (sfx words, flashes)
-function drawFrame(t) {
-  T = t; ROOT.clear(); resetView(); FRAME_OVERLAYS = [];
+// expect(name, a, b, maxDist): a contact assertion for THIS frame (a, b = [x,y,z] world points, e.g. limb(pip, 'footR') and
+// the door's face). Failures print as page warnings in every sheet/strip render, and tools/continuity.mjs collects them.
+let EXPECTS = [];
+function expect(name, a, b, maxDist = .6) { const d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); EXPECTS.push({ name, d: +d.toFixed(2), ok: d <= maxDist, maxDist }); }
+function buildFrame(t) {
+  T = t; ROOT.clear(); resetView(); FRAME_OVERLAYS = []; EXPECTS = [];
   if (window.LOOP) window.LOOP(t);
-  else runShot(t);
+  else if (SHOTS.length) {
+    const i = shotIndex(t), since = t - SHOTS[i][0];
+    if (i > 0 && window.SHOT_BLEND > 0 && since < window.SHOT_BLEND) {
+      callShot(i - 1, SHOTS[i][0] - 1 / 24);                       // the previous shot's last frame
+      const snap = snapshotActors(); ROOT.clear(); resetView(); FRAME_OVERLAYS = []; EXPECTS = [];
+      callShot(i, t); blendActors(snap, ease(since / window.SHOT_BLEND));
+    } else callShot(i, t);
+  }
   const camObj = applyView();
   if (!window.LOOP || window.LOOP.world) {
     const c = new THREE.Vector3(...VIEW.look); window.__camLook = VIEW.look;   // districts may LOD by distance to the look point
     for (const d of DISTRICTS) if (d.always || Math.hypot(d.at[0] - c.x, d.at[1] - c.z) < d.r + 260) d.fn(t);
   }
   scene.updateMatrixWorld(true);
+  for (const e of EXPECTS) if (!e.ok) console.warn(`expect "${e.name}" failed at t=${t.toFixed(3)}: distance ${e.d} > ${e.maxDist}`);
+  return camObj;
+}
+// simulateAt(t): build the frame WITHOUT rendering and report the actors (anything made by fig/clawd/robot): world position,
+// on-screen (in the camera frustum), and joint angles. tools/continuity.mjs uses it to find teleports and pose snaps.
+const _fr = new THREE.Frustum(), _pm = new THREE.Matrix4(), _v = new THREE.Vector3();
+window.simulateAt = t => {
+  const camObj = buildFrame(t); _pm.multiplyMatrices(camObj.projectionMatrix, camObj.matrixWorldInverse); _fr.setFromProjectionMatrix(_pm);
+  const actors = [];
+  const _s = new THREE.Vector3();
+  ROOT.traverse(o => { const a = o.userData?.actor; if (!a || !o.visible) return; let shown = true; o.traverseAncestors(p => { if (!p.visible) shown = false; }); if (!shown) return;
+    o.getWorldScale(_s); if (Math.max(_s.x, _s.y, _s.z) < .05) return;   // hidden or scaled to nothing: not on screen
+    o.getWorldPosition(_v);
+    const J = o.userData.J, joints = J ? Object.fromEntries(['legL', 'legR', 'armL', 'armR', 'head', 'upper'].filter(k => J[k]).map(k => [k, +(J[k].rotation.x + J[k].rotation.y + J[k].rotation.z).toFixed(3)])) : {};
+    const sink = J?.body ? +(J.body.position.y - 3.6).toFixed(3) : 0, straight = J?.legL ? Math.abs(J.legL.rotation.x) < .5 && Math.abs(J.legR.rotation.x) < .5 : false;
+    actors.push({ id: a, p: [+_v.x.toFixed(3), +_v.y.toFixed(3), +_v.z.toFixed(3)], on: _fr.containsPoint(_v.clone().setY(_v.y + 2)), joints, sink, straight, sc: +Math.max(_s.x, _s.y, _s.z).toFixed(3) }); });
+  return { t, actors, expects: EXPECTS, cam: camObj.position.toArray().map(v => +v.toFixed(3)) };
+};
+function drawFrame(t) {
+  const camObj = buildFrame(t);
   if (inkPass.uniforms.amount.value > .001) {      // normals + depth for the ink pass
     // un-squashed world for edges: the squash runs along the view axis, so on screen nothing moves (exactly, once ortho),
     // but depth and normals keep their real 3D differences, which is what the edge detector needs
@@ -395,7 +444,7 @@ window.renderSheet = async (times, cols = 3, w = 640, crop = null) => {
 window.gpuInfo = () => { const gl = renderer.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); };
 
 // export everything chapters need as globals (chapter files are plain modules that use these names)
-Object.assign(window, { path, fly, smoother, mixVal, runShot, THREE, W, H, BPM, BEAT, OFF, DUR, clamp, lerp, ease, easeIn, easeOut, backOut, seg, frac, hash, bt, beatPh, pulse, kf, shake,
+Object.assign(window, { expect, limb, path, fly, smoother, mixVal, runShot, THREE, W, H, BPM, BEAT, OFF, DUR, clamp, lerp, ease, easeIn, easeOut, backOut, seg, frac, hash, bt, beatPh, pulse, kf, shake,
   plastic, matte, glowMat, part, partGeo, build, growing, keep, put, district, shots, cam, look, orbit, drift, overlay, hud, LOOPS, ROOT, renderer,
   T: () => T, scene });
 window.ENGINE3D = { start: async () => {
