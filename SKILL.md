@@ -12,7 +12,7 @@ metadata:
 |---|---|
 | `/music-video help`, `/music-video` with no song, or "how do I use this?" | Print the **Help** block below verbatim, then check prerequisites (`node -v`, `ffmpeg -version`, `uv --version`, Chrome present) and report each as ✅/❌ with the install command. Stop; don't start a video. |
 | `/music-video lessons` | Print `LESSONS.md` (the newest entry in full, older entries as headings only). |
-| `/music-video <song file> [lyrics.srt] [notes]` | Run the pipeline below. |
+| `/music-video <song file> [lyrics.srt] [flags] [notes]` | Parse the **Flags** below, say which gates are on in one line, then run the pipeline. |
 
 **Help**
 ```
@@ -24,10 +24,22 @@ USAGE
   /music-video song.mp3 "noir style, cat detective"     optional creative direction
   /music-video help | lessons
 
-WHAT HAPPENS (about 1.5–2 h, mostly waiting on your two approvals)
+FLAGS (default: stop at storyboard AND pilot for your approval)
+  --skip=storyboard        don't wait on the storyboard; still wait on the pilot
+  --skip=pilot             wait on the storyboard; don't wait on the pilot
+  --skip=all  (or --auto)  no stops: song in, finished MP4 out, fully agentic
+  --design                 MORE planning: adds a design stage (character model
+                           sheets, palette swatches, one style frame per chapter)
+                           and stops so you can iterate on the look before any
+                           animation. Combine: --design --skip=pilot
+  Skipped gates are not skipped work: the artifact is still made and self-reviewed,
+  and the choices it made are listed in DECISIONS.md for you to read afterwards.
+
+WHAT HAPPENS (about 1.5–2 h with stops; about 45–60 min with --auto)
   1. Analyses the song: tempo, drops, sections, lyric timing
-  2. Writes STORYBOARD.md and STOPS for your approval
-  3. Builds a 30 s pilot clip and STOPS so you can watch it
+  2. Writes STORYBOARD.md and STOPS for your approval        (unless --skip)
+  2b. With --design: model sheets + style frames, STOPS to iterate
+  3. Builds a 30 s pilot clip and STOPS so you can watch it   (unless --skip)
   4. Builds the rest in parallel (sub-agents), checks every scene change
   5. Renders out/<song>_full.mp4 (1080p, H.264 + AAC), ready for YouTube
 
@@ -46,7 +58,23 @@ Image models (Deforum, SDXL-Turbo img2img, etc.) re-guess every frame, which giv
 Attempt 1 of zoo2 did that overnight and was rejected. Code-drawn frames are pure functions of song time:
 smooth, on model and exactly on the beat. Cloud video models (Kling, Seedance, Veo) are the other route, at about $70–300 a song.
 
-## Pipeline (do these in order; the two STOPs are real)
+## Flags and gates
+Parse flags from the arguments **and** from plain words: "no stops", "fully autonomous", "just make it" mean
+`--skip=all`; "skip the storyboard approval" means `--skip=storyboard`; "let me see the characters first", "plan it
+out more" mean `--design`. Values combine with commas (`--skip=storyboard,design`). Unknown flag: say so and stop.
+
+| Gate | Default | When skipped |
+|---|---|---|
+| **G1 storyboard** | STOP | Write it, run one self-critique pass against the lyric sheet (one idea per line? every chorus a payoff? motif returns at the end?), then continue. |
+| **G2 design** (only with `--design`) | STOP, iterate until approved | `--skip=design` keeps the stage but self-critiques the sheets instead of waiting. |
+| **G3 pilot** | STOP | Still build the pilot (it creates the shared `SETS` the chapters need). Do **two** contact-sheet review passes and fix the usual first-pass bugs before continuing. |
+
+A gate is only skipped when the user said so; when in doubt, stop. A STOP is real: end the turn and wait.
+For every skipped gate, append to `DIR/DECISIONS.md`: the gate, what was decided, the alternatives you weighed,
+and the paths of the images you reviewed. Link `DECISIONS.md` in the final report so the user can audit it.
+Never skip the final ffprobe check and the lyric/frame spot check in step 8: those are verification, not approval.
+
+## Pipeline (do these in order; the STOPs are real unless a flag skipped them)
 
 1. **Project.** Make the project folder **outside** any repo, e.g. `~/PROJECTS/<song>-video/`:
    `bash ~/.claude/skills/music-video/scripts/setup_project.sh ~/PROJECTS/<song>-video`
@@ -60,13 +88,24 @@ smooth, on model and exactly on the beat. Cloud video models (Kling, Seedance, V
    (`examples/zoo2/scenes/c01_pilot.js`) before writing anything.
 4. **Storyboard.** Write `DIR/STORYBOARD.md` (format: `examples/zoo2/STORYBOARD.md`) with the logline, cast,
    palette arc, motif, a chapter table for the whole song, and the pilot shot by shot with timed "reads".
-   One visual idea per lyric line, acted by characters. **STOP: show the user and wait for approval.**
+   One visual idea per lyric line, acted by characters. **G1 — STOP: show the user and wait for approval**
+   (with `--skip=storyboard`/`all`: self-critique, log to `DECISIONS.md`, continue).
+4b. **Design (only with `--design`).** Before any animation, settle the look as still images in `out/design/`:
+   - `cast_<name>.jpg` model sheet per character: front, three-quarter and side view, 4 expressions
+     (neutral, joy, fear, determination), 3 action poses from the storyboard, and a height line-up of the whole cast;
+   - `palette.jpg`: swatch strip per chapter, showing the palette arc across the song;
+   - `style_<chapter>.jpg`: one finished key frame per chapter at the storyboard's hero moment, karaoke bar on.
+   Draw them with a throwaway `scenes/design.js` (a sheet-only chapter outside the song's time range) and
+   `node render.mjs --sheet=...`; character code goes in `src/cast.js` additions that the chapters will reuse, so
+   approved designs carry straight into the video. **G2 — STOP:** show the sheets; take notes ("bigger eyes",
+   "warmer chorus palette"), re-render, repeat until the user approves. Then update `STORYBOARD.md` to match.
 5. **Pilot.** Pick about 30 s that crosses a section boundary into a chorus. Build it as one chapter file with shared
    sets exported on `window.SETS` (see the end of `c01_pilot.js`). Check it with
    `node render.mjs --sheet=... --out=out/check/x.jpg` and `--strip=a:b`, and **look** at the images. The usual
    first-pass bugs: characters too small (push the camera in to 1.3–1.5×), background shapes not wide enough for
    whip pans, props hidden under the karaoke bar. Render `node render.mjs --clip --range=a:b --out=out/pilot.mp4`.
-   **STOP: the user watches it and approves or gives changes.**
+   **G3 — STOP: the user watches it and approves or gives changes** (with `--skip=pilot`/`all`: two review passes,
+   log to `DECISIONS.md`, continue).
 6. **Chapters in parallel.** Add stub files and their `<script>` tags in `studio.html` for every chapter first
    (an agent must never edit a shared file). Then launch one sub-agent per chapter (fork type, so it inherits
    this context). Give each one its time range, its lyric lines, its chapter brief from the storyboard,
@@ -76,6 +115,7 @@ smooth, on model and exactly on the beat. Cloud video models (Kling, Seedance, V
    - contact sheets go to `out/check/<chapter>_*.jpg` only, never `out/frames` or MP4s;
    - at least 2 review passes, then report the shot list and known weaknesses.
    Pair intro and outro in one agent so the ending rhymes with the opening.
+   With `--design`, also give each agent its approved `out/design/style_<chapter>.jpg` as the look to match.
 7. **Seams.** Render a sheet at each boundary ±0.04 and ±0.2 s and check that the wipe colours match and the flashes land.
 8. **Render.** `node render.mjs --frames --workers=6`, then
    `node render.mjs --encode --audio=assets/song.mp3 --out=out/<song>_full.mp4`.

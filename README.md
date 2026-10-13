@@ -24,6 +24,12 @@ Claude writes a storyboard and **stops for your approval**, builds a 30-second p
 builds the rest in parallel with sub-agents and renders a 1080p MP4. Suno exports with embedded lyrics work
 without an .srt.
 
+Want fewer or more stops?
+- `--skip=storyboard`, `--skip=pilot`, or `--skip=all` (alias `--auto`) skip those approvals. The work is still done
+  and self-reviewed, and what Claude decided on its own is written to `DECISIONS.md`.
+- `--design` adds a stage before any animation: character model sheets, palette swatches and one style frame per
+  chapter, iterated with you until the look is right.
+
 ## Improve it over time
 After each video, have Claude add a dated entry to `LESSONS.md` (what broke, what fixed it, what to try next).
 Claude reads it first every time, so the next video starts smarter.
