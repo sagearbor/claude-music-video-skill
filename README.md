@@ -8,7 +8,7 @@ Example: **"Please Select Your Ending"** (4:30, about 100 shots), made with this
 
 ## Install (any computer)
 ```bash
-git clone https://github.com/<you>/claude-music-video-skill ~/.claude/skills/music-video
+git clone https://github.com/sagearbor/claude-music-video-skill ~/.claude/skills/music-video
 ```
 No git? Download the ZIP from GitHub and unzip it so that `~/.claude/skills/music-video/SKILL.md` exists.
 
