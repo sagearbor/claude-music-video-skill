@@ -196,15 +196,16 @@ const drift = (lt, k = 1) => [k * .35 * Math.sin(lt * .21 + 1), k * .12 * Math.s
 
 // path(t, keys): a smooth camera path through time-stamped keys [[t, [x,y,z]], ...] (centripetal Catmull-Rom).
 // Unlike kf(), which eases INTO each key (the camera stops at every key: jerky), the path keeps moving through its keys
-// and only eases at the very first and last key. Use it for every camera position and look point.
+// and only eases in its first and last segment (keys always land on time). Use it for every camera position and look point.
 //   path(t, keys, { easeEnds: false }) keeps full speed at the ends too (for joining a flight).
 function path(t, keys, o = {}) {
   const n = keys.length; if (n === 1) return keys[0][1];
-  const T0 = keys[0][0], T1 = keys[n - 1][0];
-  let u = clamp((t - T0) / (T1 - T0)); if (o.easeEnds !== false) u = (u < .5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u)) * .35 + u * .65;
-  const tt = T0 + u * (T1 - T0); let i = 0; while (i < n - 2 && tt > keys[i + 1][0]) i++;
+  const tt = clamp(t, keys[0][0], keys[n - 1][0]); let i = 0; while (i < n - 2 && tt > keys[i + 1][0]) i++;
   const P = k => keys[clamp(k, 0, n - 1)][1], p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
-  const s = clamp((tt - keys[i][0]) / (keys[i + 1][0] - keys[i][0]));
+  let s = clamp((tt - keys[i][0]) / (keys[i + 1][0] - keys[i][0]));
+  // ease only the first and last SEGMENT (start from rest / settle), so every key still lands exactly on its time
+  if (o.easeEnds !== false) { const first = i === 0, last = i === n - 2, f = x => x * x * (2 - x);
+    if (first && last) s = s * s * s * (s * (s * 6 - 15) + 10); else if (first) s = f(s); else if (last) s = 1 - f(1 - s); }
   if (!Array.isArray(p1)) return crSpline(s, [p0], [p1], [p2], [p3])[0];
   return crSpline(s, p0, p1, p2, p3);
 }

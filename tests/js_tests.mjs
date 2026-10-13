@@ -20,6 +20,8 @@ test('path passes through its keys', () => { const keys = [[0, [0, 0, 0]], [1, [
   for (const [t, p] of keys.slice(1, -1)) { const q = ctx.path(t, keys, { easeEnds: false }); p.forEach((v, i) => near(q[i], v, 1e-9)); } });
 test('path keeps moving through a key (no stop, unlike kf)', () => { const keys = [[0, [0, 0, 0]], [1, [10, 0, 0]], [2, [20, 0, 0]]];
   const v = (ctx.path(1.01, keys, { easeEnds: false })[0] - ctx.path(.99, keys, { easeEnds: false })[0]) / .02; if (v < 5) throw new Error('speed at key ' + v); });
+test('default easing keeps every key on time', () => { const keys = [[0, [0, 0, 0]], [3, [9, 0, 0]], [6, [3, 4, 0]], [9, [0, 0, 7]]];
+  for (const [t, p] of keys) { const q = ctx.path(t, keys); p.forEach((v, i) => near(q[i], v, 1e-9)); } });
 test('path is continuous (no jumps between frames)', () => { const keys = [[0, [0, 0, 0]], [1.3, [8, 3, -2]], [2, [5, 9, 4]], [4, [-3, 1, 1]]]; let prev = ctx.path(0, keys);
   for (let t = 1 / 24; t <= 4; t += 1 / 24) { const p = ctx.path(t, keys); if (Math.hypot(p[0] - prev[0], p[1] - prev[1], p[2] - prev[2]) > 1) throw new Error('jump at ' + t); prev = p; } });
 test('fly starts at A and ends at B (seam contract)', () => { const A = { pos: [0, 5, 20], look: [0, 3, 0], fov: 30 }, B = { pos: [200, 6, -20], look: [200, 4, -40], fov: 40 };

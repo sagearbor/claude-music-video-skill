@@ -7,7 +7,7 @@
 //   WORLD.at(name, dx, dy, dz) → world position relative to a district centre.
 // NO HARD CUTS, anywhere: the camera path is continuous for the whole song (one take). Inside a chapter, keep one camera
 // path (path() over the chapter, never kf for the camera: kf stops at every key); shots only organise the action.
-// Chorus drops are smooth glides (F0, Fz, Fb) that ARRIVE ON THE DOWNBEAT; the punch comes from the action + a camera bump.
+// Drops ARRIVE ON THE DOWNBEAT: Fz, Fb glide in smoothly; F0 (chorus 1, the biggest boom) whips in. Punch: action + landing bump.
 const D = { desk: [0, 150], stage: [0, 0], zoo: [-200, -20], doom: [-220, -200], bliss: [0, -280], roast: [220, -200], farm: [220, -20], moon: [0, 900] };
 const MOON_Y = 300;   // the moon district floats high above the world (reached by rocket)
 const at = (n, dx = 0, dy = 0, dz = 0) => [D[n][0] + dx, (n === 'moon' ? MOON_Y : 0) + dy, D[n][1] + dz];
@@ -46,7 +46,7 @@ const F = {
 function flight(id, t) {
   const f = F[id];
   if (f.whip) return fly(t, f.t0, f.t1, f.A, f.B, { arc: 6, ease: k => k * k * k });   // accelerates INTO the beat; the landing bump stops it
-  return fly(t, f.t0, f.t1, f.A, f.B, { arc: id === 'F5' ? 160 : undefined });
+  return fly(t, f.t0, f.t1, f.A, f.B, { arc: id === 'F5' ? 160 : id === 'Fm' ? 0 : undefined });   // Fm: same district, no hop
 }
 // landing(t, tDrop): the hit at a drop: { shake: [dx, dy, dz] (a short camera bump), flash: 0..1 (a .15 s white flash) }
 function landing(t, tDrop) { const u = t - tDrop; if (u < 0 || u > .6) return { shake: [0, 0, 0], flash: 0 }; return { shake: shake(t, .45 * Math.exp(-u * 9)), flash: .7 * Math.max(0, 1 - u / .15) }; }

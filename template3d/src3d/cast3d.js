@@ -142,6 +142,7 @@ function pose(f, p = {}) {
   J.handL.rotation.set(0, 0, q.handL); J.handR.rotation.set(0, 0, q.handR);
   J.head.rotation.set(-q.headTilt, q.head, q.headRoll);
   J.upper.rotation.set(q.lean, q.twist, 0);
+  if (J.earPencil) J.earPencil.visible = !q.noEarPencil;   // reset every frame (pure): pass noEarPencil: true while it's in hand
   J.body.position.y = 3.6 + q.bodyY; J.body.rotation.set(0, q.bodyYaw, q.bodyRoll);
   if (J.printHead) J.printHead.rotation.y = BACK_FACES.has(q.face) && TWO_SIDED.has(look.head) ? Math.PI : 0;   // spin to the second print
   else { J.face.material.map = faceTexture(q.face, look.faceId || (look.glasses ? 'pip' : 'classic')); J.face.material.needsUpdate = true; }
@@ -208,7 +209,7 @@ function makeClawd(o = {}) {
       const tip = new T3.Mesh(new T3.SphereGeometry(.2, 12, 8), plastic(COL.black)); tip.position.set(-2.1, 5.4, 1.8); h.add(tip); return h; },
     keeper: () => { const h = new T3.Group(); const cap = new T3.Mesh(new T3.CylinderGeometry(1.6, 1.8, .9, 24), plastic('#5B7A3A')); cap.position.y = 6.5; h.add(cap);
       const brim = new T3.Mesh(new T3.BoxGeometry(2.4, .12, 1.4), plastic('#4A6630')); brim.position.set(0, 6.1, 1.6); h.add(brim); return h; },
-    reaper: () => { const h = new T3.Group(); const hood = new T3.Mesh(new T3.SphereGeometry(2.7, 24, 16, 0, Math.PI * 2, 0, Math.PI * .55), matte('#232026')); hood.scale.set(1, 1.1, .9); hood.position.set(0, 5.0, -.4); h.add(hood); return h; },
+    reaper: () => { const h = new T3.Group(); const hood = new T3.Mesh(new T3.SphereGeometry(2.7, 24, 16, 0, Math.PI * 2, 0, Math.PI * .55), matte('#232026')); hood.scale.set(1.05, 1.05, .62); hood.position.set(0, 5.4, -1.5); h.add(hood); return h; },   // pushed back so the screen face shows
     halo: () => { const h = new T3.Group(); const ring = new T3.Mesh(new T3.TorusGeometry(1.4, .16, 12, 40), glowMat('#FFE38A', 2.2)); ring.rotation.x = Math.PI / 2; ring.position.y = 7.2; h.add(ring); return h; },
   };
   J.hats = {}; for (const [k, f] of Object.entries(hats)) { J.hats[k] = f(); body.add(J.hats[k]); }

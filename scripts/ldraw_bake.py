@@ -226,6 +226,7 @@ def main():
         d = bake(lib, pid)
         allp[pid] = {k: d[k] for k in ("pos", "idx", "two_sided", "bbox", "edges", "groups") if d.get(k) is not None}
         (a.out / f"{pid}.json").write_text(json.dumps(d, separators=(",", ":")))
+        (a.out / f"{pid}.raw.json").unlink(missing_ok=True)   # a fresh bake replaces any older bevel input
         warn = f"  MISSING {d['missing']}" if d.get("missing") else ""
         print(f"{pid:10s} {len(d['idx']) // 3:6d} tris {len(d['edges']) // 6:5d} edges  {d['name']}{warn}")
     if a.js:

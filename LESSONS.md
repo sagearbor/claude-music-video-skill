@@ -3,6 +3,43 @@
 Add a dated entry after each video: what broke, what fixed it, and what to try next. Promote a lesson into SKILL.md
 once it has held for two videos.
 
+## 2026-10-13 · zoo2-3d (same song, rebuilt as a 3D brick world; `--engine=3d`)
+**Worked**
+- **Bake-off before committing to an engine.** The same 10 s shot in Three.js and in Blender (bpy). Three.js rendered about
+  100× faster and fits the sheet/strip review loop and the sub-agents unchanged, so it became the renderer. The flatten dial
+  also took one evening in Three.js.
+- **A fair rematch changed the answer.** Round 1 handicapped Blender (plain EEVEE, no bevels, a washed-out colour setup);
+  with ray tracing, GI and real bevels it looked clearly better. The gap was mostly the **bevels**, so Blender became an
+  *offline asset baker* (`bevel_parts.py`, 3.5 s for 70 parts) and Three.js renders the bevelled parts.
+- **Don't draw what a library already has.** LDraw ships 395 official printed minifig heads as coloured geometry. The baker
+  keeps print colours, and the crowd wears real printed faces (2-sided heads spin for the second expression). Hand-drawn
+  decals stay only for the hero, who needs 16 expressions with the same glasses.
+- **One world, one take.** Districts + shared seam flights (`WORLD.F`), both chapters calling the same `flight()`, gave
+  continuous seams by construction. Measuring the actual camera (`tools/camprobe.mjs`) settled a "seam jump" that was really
+  content arriving under a flash.
+- **A living background is cheap when it's a function of song time**: buildings that grow across the whole song, sowers,
+  river ripples, cranes. Easter-egg props (`EGGS.*`) reward pausing.
+- **Agents found engine bugs the orchestrator missed**: `path()` time warp, an impure `earPencil`, the reaper hood hiding the
+  face, a per-frame `doorUnit()` leak, egg caches that ignored their key. Fix them centrally the moment they're reported.
+
+**Broke / fix**
+- `put()` overwrites rotation: a ground plane became a giant wall hiding everything. Wrap tilted meshes in a Group.
+- `ShaderPass` clones uniforms and drops render-target textures, so the ink pass had no input. Assign them after construction.
+- Ink outlines vanished when flat: the z-squash also flattens depth and normals. Render the edge pass un-squashed (exact once
+  orthographic) and fade the ink in only above flat ≈ .82.
+- `kf()` for cameras stops at every key (jerky). Use `path()` (Catmull-Rom), easing only the first and last segment;
+  global end-easing pushed keys up to 1 s late.
+- Blender washed out: AgX look + a mis-mapped world gradient. Use Standard view + Map Range on the world's z.
+- The bevel step merged coplanar faces across print colours (scrambled faces). Dissolve with `delimit={'MATERIAL'}`, and
+  don't bevel heads.
+- BFC: an uncertified parent makes its children two-sided (found by a new unit test).
+
+**Weak in the result (try next time)**
+- Flights between far districts sometimes look down at empty grass for 1–2 s; aim the flight's look point at the horizon.
+- Finale crowd shots are busy; Pip gets lost. Give the hero a contrasting rim light or a clearing.
+- Motion is hand-built gaits/dances; real mocap retargeted onto minifig joints (CMU data) would add weight. It isn't plug-and-play.
+- Seams carry content changes under flashes (props pop); fade props across the flash instead.
+
 ## 2026-10-13 · zoo2 (first video; Suno song, 4:29.6, 94 BPM)
 **Worked**
 - Code-drawn frames beat AI generation decisively. The Deforum/SDXL-Turbo overnight attempt was choppy and melty and was rejected.
