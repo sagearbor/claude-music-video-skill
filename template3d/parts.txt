@@ -35,3 +35,24 @@
 # plants
 30176
 2423
+# official printed heads (crowd faces; 2-sided ones swap expression by spinning the head)
+3626cp7j
+3626cp81
+3626cp78
+3626cp8d
+3626cp7s
+3626cp8q
+3626cp8t
+3626cp80
+3626cp8e
+3626cp85
+3626cp8s
+3626cp7b
+3626cp88
+3626cp70
+3626cp0a
+3626cp7p
+3626cp8j
+3626cp7a
+3626cp8m
+3626cp0b

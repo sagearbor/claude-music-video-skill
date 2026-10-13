@@ -123,17 +123,20 @@ function partGeo(id) {
     const d = window.PARTS?.[id]; if (!d) throw new Error('part not baked: ' + id + ' (add it to parts.txt and re-run setup)');
     let g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(d.pos, 3)); g.setIndex(d.idx);
-    g = toCreasedNormals(g, .5);                                  // smooth curves, crisp brick edges
-    g.userData = { bbox: d.bbox, two: d.two_sided };
+    if (d.nrm) g.setAttribute('normal', new THREE.Float32BufferAttribute(d.nrm, 3));   // Blender-bevelled part: use its hardened normals
+    else g = toCreasedNormals(g, .5);                             // raw LDraw: smooth curves, crisp brick edges
+    // print colours (face prints, decorated parts): draw group 0 = the part's main colour, the rest fixed colours
+    if (d.groups?.length) { g.clearGroups(); d.groups.forEach((gr, i) => g.addGroup(gr.start * 3, gr.count * 3, i)); }
+    g.userData = { bbox: d.bbox, two: d.two_sided, groups: d.groups || [] };
     GEO.set(id, g);
   }
   return GEO.get(id);
 }
 // part('3001', '#c4281c') → a Mesh of one brick (origin at the LDraw part origin: top of the brick, stud base).
 function part(id, col, o = {}) {
-  const g = partGeo(id), m = new THREE.Mesh(g, o.mat || plastic(col));
+  const g = partGeo(id), side = g.userData.two ? { side: THREE.DoubleSide } : {};
+  const m = new THREE.Mesh(g, o.mat || (g.userData.groups.length ? g.userData.groups.map(gr => gr.c === 16 ? plastic(col, side) : plastic(gr.hex || '#000000', side)) : plastic(col, side)));
   m.castShadow = m.receiveShadow = true;
-  if (g.userData.two && !o.mat) m.material = plastic(col, { side: THREE.DoubleSide });
   return m;
 }
 // Static brick builds, merged per colour into a few meshes (fast). list: [[partId, colour, x, y, z, rotY], ...]
@@ -190,6 +193,25 @@ function look(o) { Object.assign(VIEW, o); }          // sky, fog, exposure, key
 const orbit = (c, r, a, h) => [c[0] + r * Math.sin(a), c[1] + h, c[2] + r * Math.cos(a)];
 // drift(lt, k): a slow cinematic drift to add to any camera position (default on: the user wants slow pans)
 const drift = (lt, k = 1) => [k * .35 * Math.sin(lt * .21 + 1), k * .12 * Math.sin(lt * .17), k * .25 * Math.sin(lt * .13 + 2)];
+
+// path(t, keys): a smooth camera path through time-stamped keys [[t, [x,y,z]], ...] (centripetal Catmull-Rom).
+// Unlike kf(), which eases INTO each key (the camera stops at every key: jerky), the path keeps moving through its keys
+// and only eases at the very first and last key. Use it for every camera position and look point.
+//   path(t, keys, { easeEnds: false }) keeps full speed at the ends too (for joining a flight).
+function path(t, keys, o = {}) {
+  const n = keys.length; if (n === 1) return keys[0][1];
+  const T0 = keys[0][0], T1 = keys[n - 1][0];
+  let u = clamp((t - T0) / (T1 - T0)); if (o.easeEnds !== false) u = (u < .5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u)) * .35 + u * .65;
+  const tt = T0 + u * (T1 - T0); let i = 0; while (i < n - 2 && tt > keys[i + 1][0]) i++;
+  const P = k => keys[clamp(k, 0, n - 1)][1], p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+  const s = clamp((tt - keys[i][0]) / (keys[i + 1][0] - keys[i][0]));
+  if (!Array.isArray(p1)) return crSpline(s, [p0], [p1], [p2], [p3])[0];
+  return crSpline(s, p0, p1, p2, p3);
+}
+function crSpline(s, p0, p1, p2, p3) {   // uniform Catmull-Rom per component (simple, C1-continuous, passes through keys)
+  return p1.map((_, j) => { const a = p0[j], b = p1[j], c = p2[j], d = p3[j];
+    return .5 * ((2 * b) + (-a + c) * s + (2 * a - 5 * b + 4 * c - d) * s * s + (-a + 3 * b - 3 * c + d) * s * s * s); });
+}
 
 // fly(t, t0, t1, A, B, o): a camera flight between two views A, B = { pos, look, fov, sky, ... } over [t0, t1].
 // It returns a view to pass to cam()/look(). Position arcs up by o.arc (default: a quarter of the distance, min 8),
@@ -372,7 +394,7 @@ window.renderSheet = async (times, cols = 3, w = 640, crop = null) => {
 window.gpuInfo = () => { const gl = renderer.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); };
 
 // export everything chapters need as globals (chapter files are plain modules that use these names)
-Object.assign(window, { fly, smoother, mixVal, runShot, THREE, W, H, BPM, BEAT, OFF, DUR, clamp, lerp, ease, easeIn, easeOut, backOut, seg, frac, hash, bt, beatPh, pulse, kf, shake,
+Object.assign(window, { path, fly, smoother, mixVal, runShot, THREE, W, H, BPM, BEAT, OFF, DUR, clamp, lerp, ease, easeIn, easeOut, backOut, seg, frac, hash, bt, beatPh, pulse, kf, shake,
   plastic, matte, glowMat, part, partGeo, build, growing, keep, put, district, shots, cam, look, orbit, drift, overlay, hud, LOOPS, ROOT, renderer,
   T: () => T, scene });
 window.ENGINE3D = { start: async () => {

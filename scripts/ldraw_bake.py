@@ -130,9 +130,11 @@ class Baker:
                 p = _pts(tok[2:14], m)
                 self.cond.append(tuple(p))
 
-    def result(self, pid, name):
+    def result(self, pid, name, palette=None):
         index, pos, idx = {}, [], []
         colours = {}
+        # main colour (16) first, then print colours: each becomes a draw group with its own material
+        self.tris.sort(key=lambda tr: (tr[3] != 16, tr[3]))
 
         def vid(p):
             q = tuple(round(c * SCALE, 4) for c in _out(p))
@@ -147,12 +149,15 @@ class Baker:
                 continue
             idx.extend((ia, ib, ic))
             colours[str(col)] = colours.get(str(col), 0) + 1
+        groups, start = [], 0
+        for code in sorted(colours, key=lambda c: (c != "16", int(c))):
+            n = colours[code]; groups.append({"c": int(code), "hex": (palette or {}).get(int(code)), "start": start, "count": n}); start += n
         flat = lambda pts: [round(c * SCALE, 4) for p in pts for c in _out(p)]
         xs, ys, zs = pos[0::3], pos[1::3], pos[2::3]
         bbox = [[min(xs), min(ys), min(zs)], [max(xs), max(ys), max(zs)]] if pos else [[0, 0, 0], [0, 0, 0]]
         return {"id": pid, "name": name, "pos": pos, "idx": idx, "two_sided": self.two_sided,
                 "edges": flat([q for e in self.edges for q in e]), "cond": flat([q for c in self.cond for q in c]),
-                "bbox": bbox, "colours": colours}
+                "bbox": bbox, "colours": colours, "groups": groups if len(groups) > 1 else []}
 
 
 def _colour(tok, inherited):
@@ -173,6 +178,18 @@ def _out(p):
     return (p[0], -p[1], -p[2])
 
 
+def palette(lib):
+    """LDraw colour code → '#rrggbb' from LDConfig.ldr (empty if the library has none)."""
+    f = lib.root / "LDConfig.ldr"
+    out = {}
+    if f.is_file():
+        for line in f.read_text(errors="replace").splitlines():
+            t = line.split()
+            if len(t) > 6 and t[1] == "!COLOUR" and "CODE" in t and "VALUE" in t:
+                out[int(t[t.index("CODE") + 1])] = t[t.index("VALUE") + 1].upper()
+    return out
+
+
 def part_title(lib, pid):
     for line in lib.lines(pid + ".dat"):
         if line.startswith("0 "):
@@ -184,7 +201,7 @@ def bake(lib, pid, text=None):
     b = Baker(lib)
     b.walk(pid + ".dat" if text is None else pid, text=text)
     name = part_title(lib, pid) if text is None else pid
-    out = b.result(pid, name)
+    out = b.result(pid, name, palette(lib) if text is None else {})
     if b.missing:
         out["missing"] = sorted(b.missing)
     return out
@@ -206,7 +223,7 @@ def main():
     allp = {}
     for pid in ids:
         d = bake(lib, pid)
-        allp[pid] = {k: d[k] for k in ("pos", "idx", "two_sided", "bbox", "edges")}
+        allp[pid] = {k: d[k] for k in ("pos", "idx", "two_sided", "bbox", "edges", "groups") if d.get(k) is not None}
         (a.out / f"{pid}.json").write_text(json.dumps(d, separators=(",", ":")))
         warn = f"  MISSING {d['missing']}" if d.get("missing") else ""
         print(f"{pid:10s} {len(d['idx']) // 3:6d} tris {len(d['edges']) // 6:5d} edges  {d['name']}{warn}")

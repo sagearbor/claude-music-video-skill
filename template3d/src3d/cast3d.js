@@ -18,46 +18,80 @@ const st = (t, fps = 12) => Math.floor(t * fps) / fps;
 const L = (x, y, z) => new T3.Vector3(x * LDU, -y * LDU, -z * LDU);
 
 // ---------- face decals ----------
+// A face = IDENTITY (who: fixed features) × EXPRESSION (how they feel). Identities: pip (round glasses, freckles), classic,
+// lady (lashes, lips), beard, grandpa (moustache, wrinkles, grey brows), kid (big eyes, freckles), chrome (red visor).
+// Expressions: neutral, joy, laugh, fear, determined, smug, suspicious, shocked, sing, sleepy, angry, dizzy, wink, x, star, sad.
+// Or pass an object { eyes, mouth, brows, lookX, lookY, blush } using the part names below.
 const FACES = {
-  neutral: { eyes: 'dot', mouth: 'smile' }, joy: { eyes: 'happy', mouth: 'grin' }, fear: { eyes: 'wide', mouth: 'wobble', brows: 'worried' },
-  determined: { eyes: 'narrow', mouth: 'flat', brows: 'angry' }, smug: { eyes: 'narrow', mouth: 'smirk', brows: 'up' }, suspicious: { eyes: 'narrow', mouth: 'flat', lookX: .6 },
-  shocked: { eyes: 'wide', mouth: 'O', brows: 'up' }, dizzy: { eyes: 'swirl', mouth: 'wobble' }, sleepy: { eyes: 'sleepy', mouth: 'o' }, angry: { eyes: 'dot', mouth: 'grin', brows: 'angry' },
-  sing: { eyes: 'happy', mouth: 'O' }, wink: { eyes: 'wink', mouth: 'smirk' }, x: { eyes: 'x', mouth: 'flat' }, star: { eyes: 'star', mouth: 'grin' },
+  neutral: { eyes: 'open', mouth: 'smile', brows: 'calm' }, joy: { eyes: 'happy', mouth: 'grin', brows: 'up', blush: 1 }, laugh: { eyes: 'closed', mouth: 'laugh', brows: 'up', blush: 1 },
+  fear: { eyes: 'wide', mouth: 'wobble', brows: 'worried' }, determined: { eyes: 'narrow', mouth: 'flat', brows: 'angry' },
+  smug: { eyes: 'lidded', mouth: 'smirk', brows: 'raised1' }, suspicious: { eyes: 'narrow', mouth: 'flat', brows: 'raised1', lookX: .7 },
+  shocked: { eyes: 'wide', mouth: 'O', brows: 'high' }, sing: { eyes: 'closed', mouth: 'O', brows: 'up' }, sleepy: { eyes: 'sleepy', mouth: 'o', brows: 'calm' },
+  angry: { eyes: 'open', mouth: 'teeth', brows: 'angry' }, dizzy: { eyes: 'swirl', mouth: 'wobble', brows: 'worried' }, wink: { eyes: 'wink', mouth: 'grin', brows: 'raised1' },
+  x: { eyes: 'x', mouth: 'flat', brows: 'calm' }, star: { eyes: 'star', mouth: 'laugh', brows: 'high', blush: 1 }, sad: { eyes: 'open', mouth: 'frown', brows: 'worried', lookY: .5 },
+};
+const IDS = {
+  pip: { glasses: true, freckles: true }, classic: {}, lady: { lashes: true, lips: '#c2384a' }, beard: { beard: '#5a3a22', brow: '#4a2e1a' },
+  grandpa: { moustache: '#d8d8d8', wrinkles: true, brow: '#cfcfcf' }, kid: { big: 1.15, freckles: true }, chrome: { visor: true },
 };
 const FACE_TEX = new Map();
-// The decal canvas covers the front 180° of the head: x 0..1024 = angle -90°..+90°, y 0..512 = head height.
-function faceTexture(spec, glasses) {
-  const f = typeof spec === 'string' ? (FACES[spec] || FACES.neutral) : spec, k = JSON.stringify(f) + glasses;
+// The decal canvas covers the front 180° of the head: x 0..1024 = angle -90°..+90°, y 0..512 = the face band (.9 tall).
+// The camera-facing ±50° is about x 230..790, so features stay inside x 330..694.
+function faceTexture(spec, id = 'classic') {
+  if (id === true) id = 'pip'; if (!id) id = 'classic';
+  const f = typeof spec === 'string' ? (FACES[spec] || FACES.neutral) : spec, I = IDS[id] || IDS.classic, k = JSON.stringify(f) + id;
   if (FACE_TEX.has(k)) return FACE_TEX.get(k);
   const c = document.createElement('canvas'); c.width = 1024; c.height = 512; const g = c.getContext('2d');
-  g.translate(512, 250); g.scale(1.32, 1.32); g.translate(-512, -262);   // features bigger and a touch higher on the head
-  const ink = '#1d1a1a', cx = 512, ey = 230, ex = 118, lx = (f.lookX || 0) * 16, ly = (f.lookY || 0) * 12;
-  g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = ink; g.fillStyle = ink;
-  const line = (pts, w) => { g.lineWidth = w; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke(); };
-  const ell = (x, y, rx, ry, fill = ink) => { g.fillStyle = fill; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 7); g.fill(); g.fillStyle = ink; };
+  g.translate(512, 300); g.scale(1.35, 1.35); g.translate(-512, -284);   // features at minifig scale: ~45% of the head's width
+  const ink = '#16120f', cx = 512, ex = 92, ey = 214, big = I.big || 1, lx = (f.lookX || 0) * 12, ly = (f.lookY || 0) * 10;
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  const stroke = (pts, w, col = ink) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke(); };
+  const curve = (x0, y0, xc, yc, x1, y1, w, col = ink) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(xc, yc, x1, y1); g.stroke(); };
+  const oval = (x, y, rx, ry, col, rot = 0) => { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); g.fill(); };
+  if (I.visor) { g.fillStyle = '#1a1a1e'; g.beginPath(); g.roundRect(cx - 170, ey - 46, 340, 92, 40); g.fill(); oval(cx - 70 + lx * 3, ey, 30, 22, '#ff3a2a'); oval(cx + 70 + lx * 3, ey, 30, 22, '#ff3a2a'); stroke([[cx - 60, 372], [cx + 60, 372]], 12, '#2a2a2e');
+    const t = new T3.CanvasTexture(c); t.colorSpace = T3.SRGBColorSpace; FACE_TEX.set(k, t); return t; }
+  // cheeks (identity freckles, expression blush)
+  if (f.blush) for (const s of [-1, 1]) oval(cx + s * 150, 300, 46, 26, 'rgba(232,110,110,.35)');
+  if (I.freckles) for (const s of [-1, 1]) for (let i = 0; i < 4; i++) oval(cx + s * (128 + (i % 2) * 26 + i * 6), 282 + (i > 1 ? 18 : 0) - i * 3, 5, 5, 'rgba(170,96,40,.75)');
+  // eyes
+  const browCol = I.brow || ink;
   for (const s of [-1, 1]) {
-    const x = cx + s * ex, e = f.eyes === 'wink' && s > 0 ? 'happy' : f.eyes;
-    if (e === 'dot' || !e) ell(x + lx, ey + ly, 20, 26);
-    else if (e === 'narrow') { ell(x + lx, ey + 8 + ly, 20, 13); line([[x - 34, ey - 14], [x + 34, ey - 8]], 9); }
-    else if (e === 'wide') { ell(x, ey, 44, 46, '#fff'); g.lineWidth = 7; g.beginPath(); g.ellipse(x, ey, 44, 46, 0, 0, 7); g.stroke(); ell(x + lx * 1.4, ey + ly, 18, 20); }
-    else if (e === 'happy') line([[x - 30, ey + 10], [x, ey - 20], [x + 30, ey + 10]], 11);
-    else if (e === 'sleepy') { line([[x - 32, ey + 4], [x + 32, ey + 4]], 10); ell(x, ey + 16, 16, 9); }
-    else if (e === 'x') { line([[x - 24, ey - 24], [x + 24, ey + 24]], 11); line([[x + 24, ey - 24], [x - 24, ey + 24]], 11); }
-    else if (e === 'swirl') { g.lineWidth = 7; g.beginPath(); for (let a = 0; a < 16; a += .2) { const r = a * 2.4; g.lineTo(x + Math.cos(a * s) * r, ey + Math.sin(a * s) * r); } g.stroke(); }
-    else if (e === 'star') { g.fillStyle = '#E8AA38'; g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 18 : 42; g.lineTo(x + Math.cos(a) * r, ey + Math.sin(a) * r); } g.closePath(); g.fill(); g.lineWidth = 5; g.stroke(); g.fillStyle = ink; }
-    if (glasses) { g.lineWidth = 9; g.beginPath(); g.ellipse(x, ey, 62, 58, 0, 0, 7); g.stroke(); }
-    if (f.brows) { const tilt = f.brows === 'worried' ? -s * 14 : f.brows === 'angry' ? s * 16 : 0, lift = f.brows === 'up' ? -22 : 0;
-      line([[x - 38, ey - 78 + lift + tilt], [x + 38, ey - 78 + lift - tilt]], 11); }
+    const x = cx + s * ex, e = f.eyes === 'wink' && s > 0 ? 'closed' : f.eyes, rx = 23 * big, ry = 31 * big;
+    if (e === 'open' || e === 'wink') { oval(x + lx, ey + ly, rx, ry, ink); oval(x + lx - 7, ey + ly - 11, 7.5 * big, 7.5 * big, '#fff'); }
+    else if (e === 'wide') { oval(x, ey, 40 * big, 44 * big, '#fff'); g.strokeStyle = ink; g.lineWidth = 7; g.beginPath(); g.ellipse(x, ey, 40 * big, 44 * big, 0, 0, Math.PI * 2); g.stroke(); oval(x + lx * 1.4, ey + ly, 17, 20, ink); oval(x + lx * 1.4 - 5, ey + ly - 7, 5, 5, '#fff'); }
+    else if (e === 'narrow' || e === 'lidded') { g.save(); g.beginPath(); g.rect(x - 40, ey - (e === 'lidded' ? 2 : 8), 80, 60); g.clip(); oval(x + lx, ey + ly, rx, ry, ink); oval(x + lx - 6, ey + 4, 6, 6, '#fff'); g.restore(); stroke([[x - 30, ey - (e === 'lidded' ? 2 : 8)], [x + 30, ey - (e === 'lidded' ? 2 : 8)]], 10); }
+    else if (e === 'happy') curve(x - 30, ey + 12, x, ey - 34, x + 30, ey + 12, 14);
+    else if (e === 'closed') curve(x - 30, ey - 6, x, ey + 26, x + 30, ey - 6, 13);
+    else if (e === 'sleepy') { stroke([[x - 30, ey + 2], [x + 30, ey + 2]], 11); g.save(); g.beginPath(); g.rect(x - 40, ey + 2, 80, 40); g.clip(); oval(x, ey + 2, 21, 20, ink); g.restore(); }
+    else if (e === 'x') { stroke([[x - 24, ey - 24], [x + 24, ey + 24]], 13); stroke([[x + 24, ey - 24], [x - 24, ey + 24]], 13); }
+    else if (e === 'swirl') { g.strokeStyle = ink; g.lineWidth = 8; g.beginPath(); for (let a = 0; a < 15; a += .15) g.lineTo(x + Math.cos(a * s) * a * 2.4, ey + Math.sin(a * s) * a * 2.4); g.stroke(); }
+    else if (e === 'star') { g.fillStyle = '#F2B830'; g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 17 : 40; g.lineTo(x + Math.cos(a) * r, ey + Math.sin(a) * r); } g.closePath(); g.fill(); g.strokeStyle = ink; g.lineWidth = 5; g.stroke(); }
+    if (I.lashes && (e === 'open' || e === 'wide' || e === 'wink')) for (let i = 0; i < 3; i++) stroke([[x + s * (10 + i * 9), ey - ry + 4 + i * 4], [x + s * (22 + i * 13), ey - ry - 10 + i * 6]], 6);
+    if (I.wrinkles) { curve(x - 22, ey + 44, x, ey + 54, x + 22, ey + 44, 4, 'rgba(60,40,20,.55)'); stroke([[x + s * 42, ey - 6], [x + s * 56, ey - 12]], 4, 'rgba(60,40,20,.55)'); stroke([[x + s * 42, ey + 6], [x + s * 56, ey + 8]], 4, 'rgba(60,40,20,.55)'); }
+    // brows: a thick tapered stroke
+    const b = f.brows || 'calm', by = ey - 64 * big, tilt = b === 'angry' ? s * 16 : b === 'worried' ? -s * 14 : 0, lift = b === 'up' ? -10 : b === 'high' ? -24 : b === 'raised1' && s > 0 ? -18 : 0;
+    curve(x - 36, by + lift + tilt, x, by + lift - 10 - (b === 'worried' ? -6 : 0), x + 36, by + lift - tilt, 15, browCol);
+    if (I.glasses) { g.strokeStyle = '#3a2618'; g.lineWidth = 9; g.beginPath(); g.ellipse(x, ey + 2, 58, 52, 0, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 6; g.beginPath(); g.arc(x, ey + 2, 44, -2.4, -1.7); g.stroke(); }
   }
-  if (glasses) line([[cx - 56, ey - 6], [cx + 56, ey - 6]], 8);
-  const my = 368, m = f.mouth || 'smile';
-  if (m === 'smile') { g.lineWidth = 10; g.beginPath(); g.arc(cx, my - 46, 60, .35, Math.PI - .35); g.stroke(); }
-  else if (m === 'grin') { g.fillStyle = '#fff'; g.beginPath(); g.moveTo(cx - 84, my - 20); g.quadraticCurveTo(cx, my + 90, cx + 84, my - 20); g.closePath(); g.fill(); g.lineWidth = 9; g.stroke(); g.fillStyle = ink; }
-  else if (m === 'smirk') line([[cx - 56, my + 4], [cx + 18, my + 12], [cx + 62, my - 18]], 10);
-  else if (m === 'flat') line([[cx - 46, my], [cx + 46, my]], 10);
-  else if (m === 'o') ell(cx, my + 6, 22, 28, '#6a2a35');
-  else if (m === 'O') { ell(cx, my + 14, 44, 56, '#6a2a35'); g.lineWidth = 7; g.beginPath(); g.ellipse(cx, my + 14, 44, 56, 0, 0, 7); g.stroke(); }
-  else if (m === 'wobble') line([[cx - 70, my], [cx - 35, my - 16], [cx, my], [cx + 35, my - 16], [cx + 70, my]], 9);
+  if (I.glasses) { curve(cx - 34, ey - 4, cx, ey - 18, cx + 34, ey - 4, 9, '#3a2618'); }
+  // beard / moustache (behind the mouth)
+  if (I.beard) { g.fillStyle = I.beard; g.globalAlpha = .9; g.beginPath(); g.moveTo(cx - 190, 250); g.quadraticCurveTo(cx - 170, 470, cx, 470); g.quadraticCurveTo(cx + 170, 470, cx + 190, 250); g.quadraticCurveTo(cx + 120, 420, cx, 410); g.quadraticCurveTo(cx - 120, 420, cx - 190, 250); g.fill(); g.globalAlpha = 1;
+    g.fillStyle = I.beard; g.beginPath(); g.moveTo(cx - 90, 336); g.quadraticCurveTo(cx, 300, cx + 90, 336); g.quadraticCurveTo(cx, 326, cx - 90, 336); g.fill(); }
+  // mouth
+  const my = 352, m = f.mouth || 'smile', lip = I.lips;
+  const fillMouth = (path, teeth = true, tongue = true) => { g.save(); g.fillStyle = '#5a1620'; path(); g.fill(); g.clip(); if (teeth) { g.fillStyle = '#fff'; g.fillRect(cx - 120, my - 60, 240, 34); } if (tongue) oval(cx, my + 58, 46, 26, '#e0606e'); g.restore(); g.strokeStyle = lip || ink; g.lineWidth = lip ? 12 : 9; path(); g.stroke(); };
+  if (m === 'smile') curve(cx - 66, my - 18, cx, my + 34, cx + 66, my - 18, lip ? 14 : 11, lip || ink);
+  else if (m === 'grin') fillMouth(() => { g.beginPath(); g.moveTo(cx - 92, my - 30); g.quadraticCurveTo(cx, my - 18, cx + 92, my - 30); g.quadraticCurveTo(cx + 70, my + 60, cx, my + 62); g.quadraticCurveTo(cx - 70, my + 60, cx - 92, my - 30); g.closePath(); });
+  else if (m === 'laugh') fillMouth(() => { g.beginPath(); g.moveTo(cx - 84, my - 32); g.quadraticCurveTo(cx, my - 22, cx + 84, my - 32); g.quadraticCurveTo(cx + 80, my + 86, cx, my + 88); g.quadraticCurveTo(cx - 80, my + 86, cx - 84, my - 32); g.closePath(); });
+  else if (m === 'teeth') { fillMouth(() => { g.beginPath(); g.roundRect(cx - 74, my - 22, 148, 52, 20); }, true, false); stroke([[cx - 70, my + 4], [cx + 70, my + 4]], 4, '#999'); }
+  else if (m === 'smirk') curve(cx - 54, my + 2, cx + 18, my + 24, cx + 70, my - 26, lip ? 14 : 11, lip || ink);
+  else if (m === 'flat') stroke([[cx - 46, my + 4], [cx + 46, my + 4]], 11, lip || ink);
+  else if (m === 'frown') curve(cx - 56, my + 22, cx, my - 18, cx + 56, my + 22, 11, lip || ink);
+  else if (m === 'o') fillMouth(() => { g.beginPath(); g.ellipse(cx, my + 8, 24, 30, 0, 0, Math.PI * 2); }, false, false);
+  else if (m === 'O') fillMouth(() => { g.beginPath(); g.ellipse(cx, my + 16, 44, 58, 0, 0, Math.PI * 2); }, false, true);
+  else if (m === 'wobble') stroke([[cx - 70, my + 4], [cx - 35, my - 12], [cx, my + 4], [cx + 35, my - 12], [cx + 70, my + 4]], 10, lip || ink);
+  if (I.moustache) { g.fillStyle = I.moustache; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(cx, my - 40); g.quadraticCurveTo(cx + s * 70, my - 66, cx + s * 110, my - 18); g.quadraticCurveTo(cx + s * 60, my - 30, cx, my - 18); g.fill(); } }
   const tex = new T3.CanvasTexture(c); tex.colorSpace = T3.SRGBColorSpace; tex.anisotropy = 8;
   FACE_TEX.set(k, tex); return tex;
 }
@@ -72,6 +106,7 @@ function makeFig(look) {
   const hips = part('3815', look.hips || look.legs || COL.navy); hips.position.copy(L(0, 32, 0)); body.add(hips);
   for (const [side, id] of [['R', '3816'], ['L', '3817']]) {
     const pv = new T3.Group(); pv.position.copy(L(0, 44, 0)); body.add(pv); pv.add(part(id, look.legs || COL.navy)); J['leg' + side] = pv;
+    const fill = new T3.Mesh(new T3.BoxGeometry(.78, 1.6, .8), plastic(look.legs || COL.navy)); fill.position.set(side === 'R' ? -.525 : .525, -.62, .02); pv.add(fill);   // plug the hollow leg back
   }
   const upper = new T3.Group(); body.add(upper); J.upper = upper;                                       // torso + arms + head (leans)
   upper.add(part('973', look.torso || COL.teal));
@@ -84,9 +119,13 @@ function makeFig(look) {
     const grip = new T3.Group(); grip.position.set(0, .1, .45); hand.add(grip); J['grip' + side] = grip;   // attach held props here
   }
   const neck = new T3.Group(); neck.position.copy(L(0, -24, 0)); upper.add(neck); J.head = neck;
-  neck.add(part('3626c', skin));
-  const face = new T3.Mesh(FACE_GEO, new T3.MeshStandardMaterial({ transparent: true, roughness: .45, polygonOffset: true, polygonOffsetFactor: -2 }));
-  face.position.set(0, -.68, 0); neck.add(face); J.face = face;
+  if (look.head) {   // an official LDraw printed head (2-sided prints: the back is the second expression)
+    const hp = new T3.Group(); hp.add(part(look.head, skin)); neck.add(hp); J.printHead = hp;
+  } else {
+    neck.add(part('3626c', skin));
+    const face = new T3.Mesh(FACE_GEO, new T3.MeshStandardMaterial({ transparent: true, roughness: .45, polygonOffset: true, polygonOffsetFactor: -2 }));
+    face.position.set(0, -.68, 0); neck.add(face); J.face = face;
+  }
   if (look.hat === 'beanie') { const h = part('41334', look.hatCol || COL.mustard); h.position.set(0, 0, 0); neck.add(h); J.hat = h; }
   else if (look.hat === 'hair') { const h = part('62810', look.hairCol || COL.brown); neck.add(h); J.hat = h; }
   if (look.pencil) { const p = pencil(.42); p.position.set(-.72, -.42, -.6); p.rotation.set(1.42, 0, .12); neck.add(p); J.earPencil = p; }   // behind the right ear, along the head
@@ -95,7 +134,7 @@ function makeFig(look) {
   return g;
 }
 function fig(key, look) { return keep('fig:' + key, () => makeFig(look)); }
-const REST = { legL: 0, legR: 0, armL: 0, armR: 0, armLz: 0, armRz: 0, handL: 0, handR: 0, head: 0, headTilt: 0, headRoll: 0, lean: 0, twist: 0, bodyY: 0, bodyRoll: 0, face: 'neutral' };
+const REST = { legL: 0, legR: 0, armL: 0, armR: 0, armLz: 0, armRz: 0, handL: 0, handR: 0, head: 0, headTilt: 0, headRoll: 0, lean: 0, twist: 0, bodyY: 0, bodyRoll: 0, bodyYaw: 0, face: 'neutral' };
 function pose(f, p = {}) {
   const { J, look } = f.userData, q = { ...REST, ...p };
   J.legL.rotation.set(-q.legL, 0, 0); J.legR.rotation.set(-q.legR, 0, 0);
@@ -103,19 +142,25 @@ function pose(f, p = {}) {
   J.handL.rotation.set(0, 0, q.handL); J.handR.rotation.set(0, 0, q.handR);
   J.head.rotation.set(-q.headTilt, q.head, q.headRoll);
   J.upper.rotation.set(q.lean, q.twist, 0);
-  J.body.position.y = 3.6 + q.bodyY; J.body.rotation.set(0, 0, q.bodyRoll);
-  J.face.material.map = faceTexture(q.face, !!look.glasses); J.face.material.needsUpdate = true;
+  J.body.position.y = 3.6 + q.bodyY; J.body.rotation.set(0, q.bodyYaw, q.bodyRoll);
+  if (J.printHead) J.printHead.rotation.y = BACK_FACES.has(q.face) && TWO_SIDED.has(look.head) ? Math.PI : 0;   // spin to the second print
+  else { J.face.material.map = faceTexture(q.face, look.faceId || (look.glasses ? 'pip' : 'classic')); J.face.material.needsUpdate = true; }
   for (const s of ['L', 'R']) { const gp = J['grip' + s]; while (gp.children.length) gp.remove(gp.children[0]); if (q['hold' + s]) gp.add(q['hold' + s]); }
   return f;
 }
 // gaits (ph = cycles; stiff: legs swing as straight hinges, arms counter-swing)
-const walkPose = ph => { const s = Math.sin(ph * Math.PI * 2); return { legL: .5 * s, legR: -.5 * s, armL: -.45 * s, armR: .45 * s, bodyY: .06 * Math.abs(Math.cos(ph * Math.PI * 2)) }; };
-const runPose = ph => { const s = Math.sin(ph * Math.PI * 2); return { legL: .9 * s, legR: -.9 * s, armL: -1.0 * s, armR: 1.0 * s, lean: .18, bodyY: .25 * Math.abs(s) }; };
+// gaits live in motion.js (natural walk/run + dances); these names stay for old chapters
+const walkPose = ph => walk(ph), runPose = ph => run(ph);
 
 // ---------- Pip and the crowd ----------
-const PIP = { torso: COL.teal, legs: COL.navy, hat: 'beanie', hatCol: COL.mustard, glasses: true, pencil: true };
+const PIP = { torso: COL.teal, legs: COL.navy, hat: 'beanie', hatCol: COL.mustard, faceId: 'pip', pencil: true };
 const CROWD_TORSO = [COL.red, COL.blue, COL.green, COL.magenta, COL.orange, COL.lilac, COL.white, COL.dkorange];
-const crowdLook = i => ({ torso: CROWD_TORSO[i % 8], legs: [COL.navy, COL.black, COL.tan, COL.dkgrey][i % 4], hat: i % 3 ? 'hair' : 'beanie',
+// Official printed heads for the crowd (LDraw 3626cp*, baked from template3d/parts.txt). TWO_SIDED ones show their back
+// print for the "unhappy" faces (BACK_FACES): smile ↔ scared/sad/angry, the way brick films swap expressions.
+const CROWD_HEADS = ['3626cp7j', '3626cp81', '3626cp78', '3626cp8d', '3626cp7s', '3626cp8q', '3626cp8t', '3626cp80', '3626cp8e', '3626cp85', '3626cp8s', '3626cp7b', '3626cp88', '3626cp70', '3626cp0a', '3626cp7p', '3626cp8j', '3626cp7a'];
+const TWO_SIDED = new Set(['3626cp7j', '3626cp81', '3626cp78', '3626cp8d', '3626cp7s', '3626cp8q', '3626cp8t', '3626cp80', '3626cp8e', '3626cp85', '3626cp8s', '3626cp7b', '3626cp70', '3626cp0a', '3626cp8j', '3626cp8m', '3626cp0b']);
+const BACK_FACES = new Set(['fear', 'shocked', 'sad', 'angry', 'dizzy', 'x', 'determined']);
+const crowdLook = i => ({ head: CROWD_HEADS[i % CROWD_HEADS.length], faceId: ['classic', 'lady', 'beard', 'kid', 'grandpa', 'lady', 'classic', 'kid'][i % 8], torso: CROWD_TORSO[i % 8], legs: [COL.navy, COL.black, COL.tan, COL.dkgrey][i % 4], hat: i % 3 ? 'hair' : 'beanie',
   hairCol: [COL.brown, COL.black, COL.dkorange, COL.tan][i % 4], hatCol: [COL.red, COL.blue, COL.green][i % 3], skin: COL.yellow });
 
 // ---------- Clawd, built from bricks ----------
@@ -151,7 +196,7 @@ function makeClawd(o = {}) {
   }
   for (const [s, k] of [[-1, 'L'], [1, 'R']]) {
     const sh = new T3.Group(); sh.position.set(s * 2, 4.4, 0); body.add(sh);
-    const arm = part('3004', col); arm.rotation.y = Math.PI / 2; arm.position.set(s * .5, .6, 0); sh.add(arm); J['arm' + k] = sh;
+    const arm = part('3005', col); arm.position.set(s * .5, .6, 0); sh.add(arm); J['arm' + k] = sh;
     const grip = new T3.Group(); grip.position.set(s * 1.1, 0, .2); sh.add(grip); J['grip' + k] = grip;
   }
   const scr = new T3.Mesh(new T3.PlaneGeometry(3.4, 1.7), new T3.MeshStandardMaterial({ transparent: true, roughness: .4, polygonOffset: true, polygonOffsetFactor: -2 }));
@@ -287,7 +332,7 @@ function robot() {
   const body = build([['3003', COL.grey, 0, 3.6, 0, 0], ['3003', COL.dkgrey, 0, 2.4, 0, 0], ['3062b', COL.black, 0, 4.8, 0, 0], ['6141', COL.red, 0, 5.2, 0, 0]]); g.add(body);
   const eye = new T3.Mesh(new T3.BoxGeometry(1.2, .25, .1), glowMat('#7CE3FF', 2)); eye.position.set(0, 3.9, 1.02); g.add(eye);
   J.legs = [-.5, .5].map(x => { const l = new T3.Group(); l.position.set(x, 1.2, 0); l.add(part('3005', COL.dkgrey)); g.add(l); return l; });
-  const carry = build([['3001', COL.red, 0, 0, 0, 0]]); carry.position.set(0, 5, .6); carry.scale.setScalar(.8); g.add(carry); J.carry = carry;
+  const carry = build([['3001', COL.red, 0, 0, 0, Math.PI / 2]]); carry.position.set(0, 3.2, 1.6); carry.scale.setScalar(.7); g.add(carry); J.carry = carry;
   g.userData = { J }; return g;
 }
 function robotPose(r, p) { const { J } = r.userData; J.legs.forEach((l, i) => { l.rotation.x = .5 * Math.sin((p.walk + i * .5) * Math.PI * 2); }); J.carry.visible = !!p.carry; return r; }
@@ -340,5 +385,5 @@ function passerby(key, i, t, path, speed = 1.6) {
   return put(f, x, 0, z, Math.atan2(b[0] - a[0], b[1] - a[1]));
 }
 
-Object.assign(window, { clawdFaceTex, heldPencil, heldHandset, skyDome, studGround, flatGround, tree, passerby, COL, st, FACES, fig, pose, walkPose, runPose, PIP, crowdLook, clawd, clawdPose, pencil, handset, pill, cage, gravestone,
+Object.assign(window, { CROWD_HEADS, TWO_SIDED, BACK_FACES, CROWD_TORSO, IDS, clawdFaceTex, heldPencil, heldHandset, skyDome, studGround, flatGround, tree, passerby, COL, st, FACES, fig, pose, walkPose, runPose, PIP, crowdLook, clawd, clawdPose, pencil, handset, pill, cage, gravestone,
   doorUnit, doorPose, scroll, PAPER, paperBird, birdPose, buildSite, field, robot, robotPose, faceTexture });
