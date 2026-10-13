@@ -7,6 +7,36 @@ metadata:
 
 # music-video
 
+## Subcommands (check these first)
+| Invocation | Do this |
+|---|---|
+| `/music-video help`, `/music-video` with no song, or "how do I use this?" | Print the **Help** block below verbatim, then check prerequisites (`node -v`, `ffmpeg -version`, `uv --version`, Chrome present) and report each as ✅/❌ with the install command. Stop; don't start a video. |
+| `/music-video lessons` | Print `LESSONS.md` (the newest entry in full, older entries as headings only). |
+| `/music-video <song file> [lyrics.srt] [notes]` | Run the pipeline below. |
+
+**Help**
+```
+/music-video: turn a song into a hand-painted, beat-synced cartoon music video drawn entirely in code.
+
+USAGE
+  /music-video ~/Downloads/song.mp3                     Suno files with embedded lyrics need nothing else
+  /music-video ~/Downloads/song.mp3 lyrics.srt          other songs: give timed lyrics (.srt)
+  /music-video song.mp3 "noir style, cat detective"     optional creative direction
+  /music-video help | lessons
+
+WHAT HAPPENS (about 1.5–2 h, mostly waiting on your two approvals)
+  1. Analyses the song: tempo, drops, sections, lyric timing
+  2. Writes STORYBOARD.md and STOPS for your approval
+  3. Builds a 30 s pilot clip and STOPS so you can watch it
+  4. Builds the rest in parallel (sub-agents), checks every scene change
+  5. Renders out/<song>_full.mp4 (1080p, H.264 + AAC), ready for YouTube
+
+NEEDS   Node 20+, Google Chrome, ffmpeg, uv  (Mac: brew install node ffmpeg uv)
+COST    no API spend; uses your Claude plan (a full song is a sizeable chunk of usage)
+OUTPUT  a project folder (default ~/PROJECTS/<song>-video/), outside any repo
+AFTER   "add today's lessons to the music-video skill" makes the next video better
+```
+
 The finished example is the zoo2 video ("Please Select Your Ending", 4:30): about 100 shots, built in about 1 h 40 m wall clock.
 `examples/zoo2/` has its storyboard, every chapter file and the making-of with timeline, tokens and cost. **Read
 `LESSONS.md` before starting**: it is the improvement log, and it overrides anything here that it contradicts.

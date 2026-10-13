@@ -4,6 +4,8 @@ Give Claude Code a song (plus timed lyrics), and it storyboards, pilots and buil
 hand-painted-cartoon music video. Every frame is **drawn by code**: p5.js + p5.brush in headless Chrome, with ffmpeg
 for the audio. There's no AI image or video generation and no API costs beyond your Claude plan.
 
+Type `/music-video help` in Claude Code for usage and a prerequisite check.
+
 Example: **"Please Select Your Ending"** (4:30, about 100 shots), made with this workflow. See `examples/zoo2/MAKING-OF.md`.
 
 ## Install (any computer)
