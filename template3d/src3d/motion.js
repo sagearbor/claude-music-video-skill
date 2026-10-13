@@ -94,18 +94,21 @@ function stepTo(t, plan, o = {}) {
   const gait = (o.run ? run : walk)(dist / STRIDE * (o.run ? .8 : 1));
   return { x, z, ry, pose: amp > 0 ? blend({ legL: 0, legR: 0, armL: 0, armR: 0, bodyY: 0, lean: 0, twist: 0, bodyRoll: 0 }, gait, amp) : {} };
 }
-const KICK_REACH = 1.55;   // a minifig's toe is about 1.55 studs in front of its hips at full kick (legR 1.4 rad)
+// Measured with limb() at full kick (legR 1.4): the right toe sits 1.317 studs in front of the feet point, .525 to the figure's
+// right (local x -.525) and 1.68 up. kickStand() puts the kicker so that toe lands on the target.
+const KICK_FOOT = [-.525, 1.68, 1.317], KICK_REACH = 1.317;
+function kickStand(target, ry) { const c = Math.cos(ry), s = Math.sin(ry); return [target[0] - (KICK_FOOT[0] * c + KICK_FOOT[2] * s), target[2] - (-KICK_FOOT[0] * s + KICK_FOOT[2] * c)]; }
 function kickPose(u) {   // u: seconds relative to the hit: wind-up before, strike at 0, recover after
   const wind = Math.max(0, Math.min(1, (u + .3) / .2)), strike = u < -.1 ? 0 : u <= 0 ? ease((u + .1) / .1) : 1 - ease(Math.min(1, u / .35));
   return { legR: -.5 * wind * (1 - strike) + 1.4 * strike, armL: .7 * strike, armR: -.5 * strike, lean: -.18 * strike };
 }
 function kickAt(t, tHit, target, o = {}) {
-  const from = o.from || [target[0], target[2] + 6], dir = Math.atan2(target[0] - from[0], target[2] - from[1]);
-  const sx = target[0] - Math.sin(dir) * KICK_REACH, sz = target[2] - Math.cos(dir) * KICK_REACH, lead = o.lead ?? 1.0;
+  const from = o.from || [target[0], target[2] + 6], dir = o.face ?? Math.atan2(target[0] - from[0], target[2] - from[1]);
+  const [sx, sz] = kickStand(target, dir), lead = o.lead ?? 1.0;
   const s = stepTo(t, [[tHit - lead - .4, from], [tHit - .4, [sx, sz]]], { face: dir, run: o.run });
   return { ...s, pose: { ...s.pose, ...(t > tHit - .45 && t < tHit + .6 ? kickPose(t - tHit) : {}) } };
 }
 function handoff(t, t0, t1, from, to, arc = .6) {
   const k = ease(Math.min(1, Math.max(0, (t - t0) / (t1 - t0)))); return [lerp(from[0], to[0], k), lerp(from[1], to[1], k) + Math.sin(Math.PI * k) * arc, lerp(from[2], to[2], k)];
 }
-Object.assign(window, { walk, run, dance, DANCES, blend, crowdDance, snap, stepTo, kickAt, kickPose, KICK_REACH, handoff, STRIDE });
+Object.assign(window, { walk, run, dance, DANCES, blend, crowdDance, snap, stepTo, kickAt, kickPose, kickStand, KICK_FOOT, KICK_REACH, handoff, STRIDE });

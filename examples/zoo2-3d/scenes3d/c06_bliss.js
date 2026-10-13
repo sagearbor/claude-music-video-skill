@@ -82,7 +82,7 @@
   const sparkle = () => { const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.OctahedronGeometry(.16), glowMat('#FFD45A', 2.2))); return g; };
 
   // ---------- the district: room, ceiling, guests, life, eggs ----------
-  district('bliss', { at: WORLD.D.bliss, r: 60 }, t => {
+  district('bliss', { at: WORLD.D.bliss, r: 700 }, t => {   // r 700: drawn whenever it can be on screen (no pop-in on the horizon)
     put(keep('c06-room', room), ...A());
     put(keep('c06-curt', curtains), ...A(0, 0, .05 * Math.sin(t * .6)));
     put(sign('c06-bliss', ['BLISS'], { w: 7, h: 1.6, bg: '#ffe3ee', fg: '#c2387a', size: 150, glow: true }), ...A(0, 7.0, BACK + .2));
@@ -90,9 +90,9 @@
     const ceil = keep('c06-ceil', ceiling); put(ceil, ...A());
     ceil.userData.hinges.forEach((h, i) => { const k = ease(seg(t, PEEL(i), PEEL(i) + .55)), fall = easeIn(seg(t, PEEL(i) + .45, PEEL(i) + .9));
       h.rotation.set(-(k * Math.PI * .92 + fall * .5) + .03 * Math.sin(t * 9 + i) * k * (1 - fall), 0, .05 * (hash(i) - .5) * k); });
-    // a real dawn sun beyond the back wall (only matters once the ceiling is open)
-    if (t > L.tear - .5) { const sun = keep('c06-sun', () => { const g = new THREE.Group(), s = new THREE.Mesh(new THREE.CircleGeometry(9, 48), glowMat('#ffd27a', 2.4)); g.add(s); return g; });
-      put(sun, ...A(14, 22 + 5 * seg(t, L.tear, L.end), -140)); }
+    // a real dawn sun beyond the back wall: below the horizon until the ceiling opens, then it rises
+    const sun = keep('c06-sun', () => { const g = new THREE.Group(), s = new THREE.Mesh(new THREE.CircleGeometry(9, 48), glowMat('#ffd27a', 2.4)); g.add(s); return g; });
+    put(sun, ...A(14, lerp(-14, 22, ease(seg(t, L.tear - .3, L.end))) + 5 * seg(t, L.tear, L.end), -140));
     // the giant hard drive (right back): its platter spins
     const hd = keep('c06-hd', hardDrive); hd.userData.plat.rotation.y = t * 9; hd.userData.halo.position.y = 5.4 + .15 * Math.sin(t * 2); put(hd, ...A(11, 0, -7), -.4);
     // blissed-out guests with VR goggles, lounging and bobbing on the beat
@@ -109,14 +109,12 @@
     for (let i = 0; i < 30; i++) { const u = frac(t * (.08 + .05 * hash(i + 7)) + hash(i)), s = .5 + 1.2 * hash(i + 3);
       M.compose(new THREE.Vector3(-14 + 28 * hash(i + 1) + .5 * Math.sin(t + i), u * CEIL_Y * 1.1, BACK + 1.5 + 9 * hash(i + 2)), q, new THREE.Vector3(s, s, s)); bub.userData.im.setMatrixAt(i, M); }
     bub.userData.im.instanceMatrix.needsUpdate = true; put(bub, ...A());
-    // eggs (only while we're here: the shoggoth object is shared with the countryside egg)
-    const lk = window.__camLook || [0, 0, 0];
-    if (Math.hypot(lk[0] - 120, lk[2] + 120) > 140) {   // the countryside owns the shared shoggoth when the camera is near ITS spot
-      const sp = A(-11, 0, -6); EGGS.shoggoth('c06', t, sp[0], sp[2], .15);
-      const dish = keep('c06-dish', () => { const g = new THREE.Group(), d = part('4740', '#ffffff'); d.rotation.x = Math.PI; d.position.y = .9; g.add(d);
-        [[COL.red, -.45, .1], [COL.blue, .45, -.1], [COL.red, .1, .5], [COL.blue, -.1, -.5]].forEach(([c, x, z], i) => { const p = pill(c, c); p.scale.setScalar(.55); p.position.set(x, 1.15, z); p.rotation.set(Math.PI / 2, 0, i); g.add(p); }); return g; });
-      put(dish, ...A(-8.5, 2.8, -1.8), .4);
-    }
+    // eggs: the smiley-masked shoggoth receptionist and the red/blue pill dish on the desk
+    const sp = A(-11, 0, -6); EGGS.shoggoth('c06', t, sp[0], sp[2], .15);
+    const dish = keep('c06-dish', () => { const g = new THREE.Group(), d = part('4740', '#ffffff'); d.rotation.x = Math.PI; d.position.y = .9; g.add(d);
+      [[COL.red, -.45, .1], [COL.blue, .45, -.1], [COL.red, .1, .5], [COL.blue, -.1, -.5]].forEach(([c, x, z], i) => { const p = pill(c, c); p.scale.setScalar(.55); p.position.set(x, 1.15, z); p.rotation.set(Math.PI / 2, 0, i); g.add(p); }); return g; });
+    put(dish, ...A(-8.5, 2.8, -1.8), .4);
+    actors(t);   // the cast lives in the district, so they persist (pure function of t) before and after this chapter
   });
 
   // ---------- the shot (one continuous camera) ----------
@@ -141,67 +139,107 @@
       look({ sky: mixVal(B.sky, S.sky, dawn), keyCol: mixVal(B.keyCol, S.keyCol, dawn), keyInt: lerp(B.keyInt, S.keyInt, dawn), fill: lerp(B.fill, S.fill, dawn), exposure: lerp(B.exposure, S.exposure, dawn),
         keyDir: dawn > 0 ? mixVal([-.55, 1, .65], S.keyDir, dawn) : [-.55, 1, .65] });
     }
-    // ---- Clawd: halo + robe; gold glitter drips off it
+  }
+
+  // ---------- the cast (called from the district: pure function of t, persists before/after the chapter) ----------
+  const LV = { x: L => -9 + L * 2, y: L => L * 1.2 };   // pillow-stair levels: 0 = floor in front, 3 = top brick (x -3)
+  const STAND = [CAGE[0], CAGE[1] + 2.1];                 // where Pip stands to push the heart bars (just inside the tip)
+  const TOSS_TO = [2.6, 0, -1.2];                          // where the yanked goggles land on the floor
+  const GOG_OFF = new THREE.Matrix4().makeTranslation(0, -.55, .55);
+  // Pip's stages; each returns { pp, pos, ry }. Boundaries blend over .25 s, so no joint snaps.
+  function pipStage(i, q) {
+    if (i === 0) { const coma = seg(q, L.coma, L.coma + .4);   // in bed, leaning back on the pillow, goggles on
+      return { pp: { legL: 1.57, legR: 1.57, lean: -.7 + .05 * pulse(q, 5), armL: 2.8, armR: 2.8, armLz: .35, armRz: .35, headTilt: .25, face: coma > .5 ? 'sleepy' : 'joy' }, pos: [CAGE[0], .45, CAGE[1] + .2], ry: 0 }; }
+    if (i === 1) {   // "Wake me up instead": sits up, right hand to the goggles (grab at L.wake), then up and away with them
+      const sit = ease(seg(q, L.wake - .3, L.wake)), lift = ease(seg(q, L.wake + .05, L.wake + .35));
+      return { pp: { legL: 1.57, legR: 1.57, lean: lerp(-.7, .1, sit), armR: lerp(lerp(2.8, 2.2, sit), 3.0, lift), armRz: .7 * sit * (1 - lift), armL: lerp(2.8, .6, sit), armLz: .35 * (1 - sit),
+        head: 0, headTilt: lerp(.25, 0, sit), face: q < L.wake + .15 ? 'shocked' : 'determined' }, pos: [CAGE[0], .45, CAGE[1] + .2], ry: 0 }; }
+    if (i === 2) {   // stands, steps off the bed to the heart's tip, tosses the goggles, grips the bars, pushes
+      const up = ease(seg(q, L.cage, L.cage + .4)), fwd = ease(seg(q, L.cage + .35, L.cage + .9)), push = seg(q, L.bars - .5, L.bars) * (1 - seg(q, L.bars + .2, L.bars + .35));
+      const toss = seg(q, L.cage, L.cage + .3), grip = ease(seg(q, L.cage + .7, L.cage + 1.0));
+      return { pp: { legL: 1.57 * (1 - up), legR: 1.57 * (1 - up), armR: lerp(lerp(3.0, 2.2, toss), 1.45, grip), armL: lerp(.6, 1.45, grip), lean: .25 * push, face: 'determined', ...(fwd > 0 && fwd < 1 ? { legL: .4 * Math.sin(fwd * Math.PI * 2), legR: -.4 * Math.sin(fwd * Math.PI * 2) } : {}) },
+        pos: [lerp(CAGE[0], STAND[0], fwd), lerp(.45, 1.6, up) * (1 - fwd) + 0 * fwd + (fwd > 0 && fwd < 1 ? .4 * Math.sin(fwd * Math.PI) : 0), lerp(CAGE[1] + .2, STAND[1], fwd)], ry: 0 }; }
+    if (i === 3) {   // out through the burst bars, walking (distance-driven gait) to the pillow stairs, then points up
+      const s = stepTo(q, [[L.bars + .35, STAND], [L.bars + .9, [STAND[0], STAND[1] + 2.2]], [L.velvet + .3, [LV.x(0), PILLOWS[1]]]]);
+      return { pp: q < L.velvet + .3 ? { ...s.pose, face: 'determined' } : { armR: 2.9, armL: .3, face: 'suspicious', headTilt: .5 }, pos: [s.x, 0, s.z], ry: q < L.velvet + .3 ? s.ry : .3 }; }
+    if (i === 4) {   // climbs one step per beat, then shoves the painted ceiling up on the half-beats
+      const u = seg(q, L.velvet + 1.0, L.tear - .4) * 3, st0 = Math.min(3, Math.floor(u)), sk = st0 >= 3 ? 1 : ease(Math.min(1, (u - st0) / .5)), lev = Math.min(3, st0 + sk);
+      const pushing = q > L.tear - .3, k = ease(seg(q, L.tear - .3, L.tear)), shove = pushing ? Math.exp(-frac((q - OFF) / BEAT * 2) * 6) : 0;
+      const climb = { legL: .5 * Math.sin(sk * Math.PI), legR: -.3 * Math.sin(sk * Math.PI), armL: .4, armR: .4, face: 'determined' };
+      const push = { armL: 3.05, armR: 3.05, armLz: .18, armRz: .18, face: q > PEEL(5) ? 'laugh' : 'determined', headTilt: .45, bodyY: .3 + .25 * shove };   // up on tiptoe: hands meet the ceiling
+      return { pp: blend(climb, push, k), pos: [LV.x(lev), st0 < 3 ? LV.y(st0) + sk * 1.2 + .5 * Math.sin(sk * Math.PI) : LV.y(3), PILLOWS[1]], ry: lerp(Math.PI / 2, 0, k) }; }
+    // 5: hops down and walks the trail out toward the stage (keeps walking after the chapter, stops at the trail's end)
+    const hop = seg(q, 134.4, 134.75), z = q < 134.75 ? lerp(PILLOWS[1], 4, hop) : Math.min(80, 4 + (q - 134.75) * 3.4), x = -4 + 3 * Math.sin(z / 9) + 1;   // smooth along the (snapped) tile trail
+    const walking = q >= 134.75 && z < 80;
+    return { pp: q < 134.75 ? { armL: 2.6, armR: 2.6, legL: .4, legR: -.4, face: 'laugh' } : walking ? { ...walk((q - 134.75) * 1.5, { stride: .62 }), face: 'joy', armR: .2 } : { face: 'joy', armR: 2.6 },
+      pos: [q < 134.75 ? lerp(LV.x(3), x, hop) : x, q < 134.75 ? 3.6 * (1 - hop) + 1.2 * Math.sin(hop * Math.PI) : 0, z], ry: walking ? Math.atan2(3 / 9 * Math.cos(z / 9), 1) * ease(seg(q, 134.75, 135.2)) : 0 };
+  }
+  const STARTS = [-1e9, L.wake - .3, L.cage, L.bars + .35, L.velvet + 1.0, 134.4];
+  function pipAt(q) {
+    let i = 0; while (i + 1 < STARTS.length && q >= STARTS[i + 1]) i++;
+    const cur = pipStage(i, q), k = i ? ease(seg(q, STARTS[i], STARTS[i] + .25)) : 1;
+    if (k >= 1) return cur;
+    const prev = pipStage(i - 1, q);
+    return { pp: blend(prev.pp, cur.pp, k), pos: prev.pos.map((v, j) => lerp(v, cur.pos[j], k)), ry: lerp(prev.ry, cur.ry, k) };
+  }
+  function placePip(q) { const P = fig('pip-c06', PIP), s = pipAt(q); pose(P, s.pp); put(P, ...A(...s.pos), s.ry); P.updateWorldMatrix(true, true); return P; }
+  // a goggle object placed in world space from a parent's world matrix (head or grip) times a local offset
+  function placeAt(o, parent, off) { const m = parent.matrixWorld.clone(); if (off) m.multiply(off); const p = new THREE.Vector3(), qq = new THREE.Quaternion(), sc = new THREE.Vector3(); m.decompose(p, qq, sc);
+    put(o); o.position.copy(p); o.quaternion.copy(qq); o.scale.setScalar(1); }
+
+  function actors(t) {
+    const q = t;
+    // ---- Clawd: halo + robe; holds the spare goggles all chapter (raises them to offer at "heaven on a hard drive")
     const C = clawd('c06', {});
     keep('c06-robe', () => { const g = new THREE.Group(), robe = new THREE.Mesh(new THREE.BoxGeometry(4.3, 1.35, 2.3), plastic('#ffffff', { roughness: .8 })); robe.position.y = 3.05; g.add(robe);
       const belt = new THREE.Mesh(new THREE.BoxGeometry(4.36, .28, 2.36), plastic(ROSE)); belt.position.y = 3.6; g.add(belt); C.userData.J.body.add(g); return g; });
     const offerGog = keep('c06-gog-c', () => { const g = new THREE.Group(), gg = goggles(); gg.rotation.y = Math.PI / 2; g.add(gg); return g; });
-    let cp = { hat: 'halo', face: 'smug', armL: .4, armR: .4, bob: .15 * pulse(t, 5) };
-    if (q < L.drive) cp = { ...cp, face: q < 118.6 ? 'neutral' : 'joy', armL: .8 + .2 * Math.sin(q * 3), armR: .8 + .2 * Math.sin(q * 3 + 1) };
-    else if (q < L.bed) cp = { ...cp, face: 'smug', armR: 1.0, holdR: offerGog, lean: .1 * pulse(t, 4) };
-    else if (q < L.wake) cp = { ...cp, face: 'joy', roll: .06 * Math.sin((t - OFF) / BEAT * Math.PI), armL: .6, armR: .6 };
-    else if (q < L.bars) cp = { ...cp, face: 'shocked', armL: 1, armR: 1, bob: 0 };
-    else if (q < L.tear) cp = { ...cp, face: 'fear', armL: 1.1, armR: 1.1, lean: -.15 };
-    else { const e = 1 - seg(q, 134.5, 135.5); cp = { ...cp, face: q < 134.5 ? 'shocked' : 'suspicious', armL: 1.2 * e, armR: 1.2 * e, lean: -.25 * e }; }
+    const offer = ease(seg(q, L.drive - .2, L.drive + .3)) * (1 - ease(seg(q, L.bed - .3, L.bed + .2)));
+    let cp = { hat: 'halo', face: 'smug', armL: .4, armR: .4 + .7 * offer, bob: .15 * pulse(t, 5), holdR: offerGog };
+    if (q < L.drive) cp = { ...cp, face: q < 118.6 ? 'neutral' : 'joy', armL: .7 + .2 * Math.sin(q * 3) };
+    else if (q < L.bed) cp = { ...cp, face: 'smug', lean: .1 * pulse(t, 4) };
+    else if (q < L.wake) cp = { ...cp, face: 'joy', roll: .06 * Math.sin((t - OFF) / BEAT * Math.PI), armL: .6 };
+    else { const scare = ease(seg(q, L.wake, L.wake + .3)), back = ease(seg(q, L.bars - .2, L.bars + .3)), calm = ease(seg(q, 134.5, 135.5));
+      cp = { ...cp, face: q < L.bars ? 'shocked' : q < L.tear ? 'fear' : q < 134.5 ? 'shocked' : 'suspicious', armL: lerp(.6, 1.1, scare) * (1 - calm) + .4 * calm, armR: lerp(.4, 1.1, scare) * (1 - calm) + .4 * calm, lean: -.2 * back * (1 - calm), bob: .15 * pulse(t, 5) * (1 - scare) }; }
     clawdPose(C, cp);
-    const cx = q < L.bed ? lerp(5.5, 4, ease(seg(q, 119.5, 121))) : q < L.bars ? lerp(4, 6.5, ease(seg(q, L.bed, L.bed + .6))) : lerp(6.5, 7.5, ease(seg(q, L.bars, L.bars + .8)));
-    put(C, ...A(cx, 0, -1.5), q < L.bed ? -.25 : -.9);
-    if (q < L.wake) for (let i = 0; i < 12; i++) { const s = keep('c06-sp' + i, sparkle), u = frac(t * .8 + hash(i));
-      put(s, ...A(cx + (hash(i + 1) - .5) * 3.6, 7.4 - u * 7.2, -1.5 + (hash(i + 2) - .5) * 2 + 1.2), t * 3 + i); }
-    // ---- the heart cage: bars burst outward at L.bars
+    const cx = lerp(lerp(lerp(5.5, 4, ease(seg(q, 119.5, 121))), 6.5, ease(seg(q, L.bed, L.bed + .6))), 7.5, ease(seg(q, L.bars, L.bars + .8))) - 0 * 0;
+    const crx = lerp(-.25, -.9, ease(seg(q, L.bed - .3, L.bed + .3)));
+    put(C, ...A(cx, 0, -1.5), crx);
+    C.updateWorldMatrix(true, true); expect('clawd holds the spare goggles', limb(C, 'handR'), offerGog.getWorldPosition(new THREE.Vector3()).toArray(), .3);
+    // gold glitter dripping off Clawd (each flake grows in, falls, shrinks out: no wrap jump); stops after the wake-up
+    const drip = 1 - seg(q, L.wake - .5, L.wake);
+    for (let i = 0; i < 12; i++) { const s = keep('c06-sp' + i, sparkle), u = frac(t * .8 + hash(i)), sz = Math.sin(u * Math.PI) * drip;
+      if (sz < .2) continue;   // a flake is only drawn while big enough: its loop wraps while invisible
+      put(s, ...A(cx + (hash(i + 1) - .5) * 3.6, 7.4 - u * 7.2, -1.5 + (hash(i + 2) - .5) * 2 + 1.2), t * 3 + i, sz); }
+    // ---- the heart cage: bars burst outward at L.bars, then the front ones topple to the floor
     const hc = keep('c06-cage', heartCage), burst = backOut(seg(q, L.bars, L.bars + .35)), topple = easeIn(seg(q, L.bars + .5, L.bars + 1.1));
     hc.userData.bars.forEach(b => { const a = Math.atan2(b.position.x, b.position.z), front = Math.max(0, Math.cos(a)), r = front * (burst * .5 + topple * 1.0) + (1 - front) * topple * .15;
-      b.rotation.set(r * Math.cos(a), 0, -r * Math.sin(a) * .6); });   // the front bars burst open, then topple to the floor
-    hc.userData.top.visible = burst < .05; put(hc, ...A(CAGE[0], 1.6, CAGE[1]));
-    // ---- Pip (own fig instance: goggles ride on its head)
-    const P = fig('pip-c06', PIP), J = P.userData.J;
-    const gogOn = keep('c06-gog-p', () => { const g = goggles(); g.position.set(0, -.55, .55); J.head.add(g); return g; });
-    const gogHand = keep('c06-gog-hand', () => { const g = new THREE.Group(), gg = goggles(); gg.rotation.set(0, Math.PI / 2, 0); g.add(gg); return g; });
-    let pp, pos, ry = 0;
-    if (q < L.wake) {   // in bed, leaning back on the pillow, goggles on, blissed
-      const coma = seg(q, L.coma, L.coma + .4);
-      pp = { legL: 1.57, legR: 1.57, lean: -.7 + .05 * pulse(t, 5), armL: 2.8, armR: 2.8, armLz: .35, armRz: .35, headTilt: .25, face: coma > .5 ? 'sleepy' : 'joy' };
-      pos = [CAGE[0], .45, CAGE[1] + .2];
-    } else if (q < L.cage) {   // "Wake me up instead": sits up, yanks the goggles off
-      const k = ease(seg(q, L.wake, L.wake + .25));
-      pp = { legL: 1.57, legR: 1.57, lean: lerp(-.7, .1, k), armR: lerp(2.8, 3.0, k), armL: lerp(2.8, .6, k), armLz: .35 * (1 - k), face: k < .6 ? 'shocked' : 'determined', holdR: k > .5 ? gogHand : null };
-      pos = [CAGE[0], .45, CAGE[1] + .2];
-    } else if (q < L.bars + .35) {   // stands on the bed, grips the heart bars, pushes
-      const up = ease(seg(q, L.cage, L.cage + .4)), push = seg(q, L.bars - .5, L.bars) * (1 - seg(q, L.bars + .2, L.bars + .35));
-      pp = { legL: 1.57 * (1 - up), legR: 1.57 * (1 - up), armL: 1.4, armR: 1.4, lean: .25 * push, face: 'determined' };
-      pos = [CAGE[0], lerp(.45, 1.6, up), CAGE[1] + .2 + 1.2 * up];
-    } else if (q < L.velvet + 1.0) {   // out through the bent bars, walking to the pillow stack, pointing up at the painted sky
-      const k = ease(seg(q, L.bars + .35, L.velvet + .4)), from = [CAGE[0], CAGE[1] + 1.4], to = [PILLOWS[0] - 3.5, PILLOWS[1] + .2];
-      pp = q < L.velvet ? { ...walk(q * 1.3), face: 'determined' } : { armR: 2.9, armL: .3, face: 'suspicious', headTilt: .5 };
-      pos = [lerp(from[0], to[0], k), lerp(1.6, 0, ease(seg(q, L.bars + .35, L.bars + .7))), lerp(from[1], to[1], k)];
-      ry = q < L.velvet ? Math.atan2(to[0] - from[0], to[1] - from[1]) : .3;
-    } else if (q < 134.4) {   // climbs the pillow stairs (one step per beat) and shoves the ceiling up
-      const u = seg(q, L.velvet + 1.0, L.tear - .2) * 3, step = Math.min(3, Math.floor(u)), sk = ease(Math.min(1, (u - step) / .5));
-      const level = step >= 3 ? 3 : step + sk, pushing = q > L.tear - .2, shove = pushing ? Math.exp(-frac((q - OFF) / BEAT * 2) * 6) : 0;
-      pp = pushing ? { armL: 3.05, armR: 3.05, armLz: .2, armRz: .2, face: q > PEEL(5) ? 'laugh' : 'determined', headTilt: .45, bodyY: .2 * shove }
-        : { legL: .5 * Math.sin(sk * Math.PI), legR: -.3 * Math.sin(sk * Math.PI), armL: .4, armR: .4, face: 'determined', bodyY: .4 * Math.sin(sk * Math.PI) };
-      pos = [PILLOWS[0] - 3.5 + level * 2 + (level > 0 ? .5 : 0), level * 1.2, PILLOWS[1]]; ry = pushing ? 0 : Math.PI / 2;
-    } else {   // hops down and walks the trail out toward the stage
-      const hop = seg(q, 134.4, 134.75), z = q < 134.75 ? lerp(PILLOWS[1], 4, hop) : 4 + (q - 134.75) * 3.4, x = -4 + 3 * Math.sin(z / 9) + 1;
-      pp = q < 134.75 ? { armL: 2.6, armR: 2.6, legL: .4, legR: -.4, face: 'laugh' } : { ...walk((q - 134.75) * 1.5, { stride: .62 }), face: 'joy', armR: .2 };
-      pos = [q < 134.75 ? lerp(PILLOWS[0] + 3, x, hop) : x, q < 134.75 ? 3.6 * (1 - hop) + 1.2 * Math.sin(hop * Math.PI) : 0, z];
+      b.rotation.set(r * Math.cos(a), 0, -r * Math.sin(a) * .6); });
+    hc.userData.top.visible = true; hc.userData.top.position.y = 5.6 - 5.4 * topple; hc.userData.top.scale.setScalar(1 + .25 * burst);   // the top ring drops with the bars (no pop)
+    put(hc, ...A(CAGE[0], 1.6, CAGE[1]));
+    // ---- Pip
+    const P = placePip(q), J = P.userData.J, gog = keep('c06-gog-p', () => goggles());
+    const GRIP_OFF = new THREE.Matrix4().makeTranslation(0, .2, .1);
+    if (q < L.wake) placeAt(gog, J.head, GOG_OFF);                                   // on the face
+    else if (q < L.wake + .2) {                                                      // pulled off the face into the hand (no jump)
+      placeAt(gog, J.head, GOG_OFF); const p0 = gog.position.clone(), q0 = gog.quaternion.clone();
+      placeAt(gog, J.gripR, GRIP_OFF); const k = ease(seg(q, L.wake, L.wake + .2)); gog.position.lerpVectors(p0, gog.position, k); gog.quaternion.slerpQuaternions(q0, gog.quaternion, k);
+    } else if (q < L.cage) placeAt(gog, J.gripR, GRIP_OFF);                           // yanked into the right hand
+    else {                                                                           // tossed over the shoulder onto the floor
+      const P0 = placePip(L.cage), from = new THREE.Vector3(); P0.userData.J.gripR.getWorldPosition(from); placePip(q);
+      const to = A(...TOSS_TO), w = handoff(q, L.cage, L.cage + .55, from.toArray(), [to[0], to[1] + .25, to[2]], 2.5), k = seg(q, L.cage, L.cage + .55);
+      put(gog, ...w, 0); gog.rotation.set(k * 5, k * 3, 0);
     }
-    gogOn.visible = q < L.wake + .12;
-    pose(P, pp); put(P, ...A(...pos), ry);
-    // "coma with a playlist": notes float up off the sleeper
-    if (q > L.coma && q < L.wake + .6) { const fade = 1 - seg(q, L.wake, L.wake + .6);
-      for (let i = 0; i < 6; i++) { const n = keep('c06-note' + i, note), u = frac(t * .5 + i / 6);
-        put(n, ...A(CAGE[0] + .8 * Math.sin(u * 6 + i) - .5, 4 + u * 4, CAGE[1] - .6), Math.sin(t + i) * .5, .9 * Math.sin(u * Math.PI) * fade + .001); } }
+    if (q > L.wake - .06 && q < L.wake + .05) expect('pip grabs the goggles', limb(P, 'handR'), gog.getWorldPosition(new THREE.Vector3()).toArray(), .9);
+    if (q > L.bars - .5 && q < L.bars + .1) {   // both hands on the heart bars while pushing
+      const bars = hc.userData.bars.map(b => b.getWorldPosition(new THREE.Vector3()));
+      for (const h of ['handL', 'handR']) { const p = limb(P, h), n = bars.reduce((m, b) => Math.min(m, Math.hypot(b.x - p[0], b.z - p[2])), 1e9); expect('pip pushes the bars (' + h + ')', [n, 0, 0], [0, 0, 0], .7); }
+    }
+    if (q > L.tear - .05 && q < PEEL(5)) expect('pip shoves the ceiling', [0, limb(P, 'handR')[1], 0], [0, A(0, CEIL_Y, 0)[1], 0], 1.0);
+    // "coma with a playlist": notes grow in, float up, shrink out
+    const nf = seg(q, L.coma, L.coma + .4) * (1 - seg(q, L.wake, L.wake + .6));
+    for (let i = 0; i < 6; i++) { const n = keep('c06-note' + i, note), u = frac(t * .5 + i / 6);
+      put(n, ...A(CAGE[0] + .8 * Math.sin(u * 6 + i) - .5, 4 + u * 4, CAGE[1] - .6), Math.sin(t + i) * .5, Math.max(.001, .9 * Math.sin(u * Math.PI) * nf)); }
   }
   shots([[117.40, bliss]]);
 })();

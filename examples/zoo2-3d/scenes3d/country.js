@@ -118,7 +118,7 @@
   }
   const BOATS = 4;
   function boats(t) { for (let i = 0; i < BOATS; i++) { const x = ((t * 3 + i * 210) % 840) - 420, z = riverZ(x) + (i % 2 ? 1.5 : -1.5);
-    if (!camNear(x, z, 170)) continue; const b = keep('boat' + i, () => build([['3020', [COL.red, COL.white, COL.blue, COL.mustard][i], 0, .5, 0, 0], ['3004', COL.white, 0, 1.7, 0, 0]]));
+    const b = keep('boat' + i, () => build([['3020', [COL.red, COL.white, COL.blue, COL.mustard][i], 0, .5, 0, 0], ['3004', COL.white, 0, 1.7, 0, 0]]));
     const z2 = riverZ(x + 1), yaw = Math.atan2(1, z2 - z); put(b, x, .2 + .1 * Math.sin(t * 2 + i), z, yaw); } }
 
   // fixed background easter eggs (chapters place their own district eggs)
@@ -131,18 +131,18 @@
     put(flatGround('land', '#86b85e'));
     put(keep('country-statics', statics));
     put(keep('country-city', city));
-    for (const [x, z, f, i] of CRANES) if (camNear(x, z, 260)) craneSite(x, z, f, i, t);
+    for (const [x, z, f, i] of CRANES) if (camNear(x, z, 650)) craneSite(x, z, f, i, t);
     put(keep('river-bed', riverBed)); flow(t); boats(t);
-    for (const [name, x, z, ry] of EGG_AT) if (camNear(x, z, 140)) EGGS[name]('bg', t, x, z, ry);
-    for (const [x, z, ry, lines] of BILLBOARDS) if (camNear(x, z, 220)) EGGS.billboard(lines.join('|'), t, x, z, ry, lines);
+    for (const [name, x, z, ry] of EGG_AT) if (camNear(x, z, 600)) EGGS[name]('bg', t, x, z, ry);
+    for (const [x, z, ry, lines] of BILLBOARDS) if (camNear(x, z, 600)) EGGS.billboard(lines.join('|'), t, x, z, ry, lines);
     // town life: people strolling the plaza, a tractor in the fields
-    if (camNear(-95, 125, 150)) for (let j = 0; j < 5; j++) passerby('plaza', j, t, [[-103, 120], [-87, 120], [-87, 132], [-103, 132]], 1.2);
-    if (camNear(300, -60, 200)) { const k = frac(t / 40), x = 275 + 70 * (k < .5 ? k * 2 : 2 - k * 2), tr = keep('tractor', () => build([['3020', COL.green, 0, 1.2, 0, Math.PI / 2], ['3003', COL.green, 0, 2.4, -.5, 0], ['3062b', COL.black, -1.5, 1.2, 1], ['3062b', COL.black, 1.5, 1.2, 1], ['3062b', COL.black, -1.5, 1.2, -1], ['3062b', COL.black, 1.5, 1.2, -1]]));
+    if (camNear(-95, 125, 500)) for (let j = 0; j < 5; j++) passerby('plaza', j, t, [[-103, 120], [-87, 120], [-87, 132], [-103, 132]], 1.2);
+    if (camNear(300, -60, 600)) { const k = frac(t / 40), x = 275 + 70 * (k < .5 ? k * 2 : 2 - k * 2), tr = keep('tractor', () => build([['3020', COL.green, 0, 1.2, 0, Math.PI / 2], ['3003', COL.green, 0, 2.4, -.5, 0], ['3062b', COL.black, -1.5, 1.2, 1], ['3062b', COL.black, 1.5, 1.2, 1], ['3062b', COL.black, -1.5, 1.2, -1], ['3062b', COL.black, 1.5, 1.2, -1]]));
       put(tr, x, 0, -40, k < .5 ? Math.PI / 2 : -Math.PI / 2); }
     // road walkers near the camera
     const c = window.__camLook || [0, 0, 0];
     for (let i = 0; i + 1 < ROUTE.length; i++) { const [a, b] = [D[ROUTE[i]], D[ROUTE[i + 1]]], m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-      if (Math.hypot(m[0] - c[0], m[1] - c[2]) > 160) continue;
+      // road walkers are cheap: always drawn (a distance cut-off made them pop out of the aerial shots)
       for (let j = 0; j < 2; j++) passerby('road' + i, j, t, [[lerp(a[0], b[0], .25) + 3, lerp(a[1], b[1], .25)], [lerp(a[0], b[0], .75) + 3, lerp(a[1], b[1], .75)]], 1.4); }
   });
 })();

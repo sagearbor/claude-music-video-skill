@@ -107,99 +107,147 @@
         M.compose(new THREE.Vector3(x, y, z), q.setFromEuler(e.set(u * 7 * hash(i + 5), u * 5, u * 3)), new THREE.Vector3(1, 1, 1)); im.setMatrixAt(i, M); }
       im.instanceMatrix.needsUpdate = true; put(g, ...Z(0, .4, GLASS_Z)); }
 
-    // the plaque on the glass: HUMANS → SANCTUARY
-    if (t < BLOW) { const sanct = t >= 68.38;
-      put(sign(sanct ? 'zoo-plq2' : 'zoo-plq1', sanct ? ['SANCTUARY', '(it\'s a cell)'] : ['HUMANS', 'formerly in charge'], { w: 5.2, h: 1.7, bg: '#c99a4a', fg: '#3a2a10', size: 80, edge: '#8a6a2a' }), ...Z(0, 6.5, GLASS_Z + .2)); }
 
     // the mood lamp: cycles colours slowly, pulses on the beat
     const lp = keep('zoo-lamp', lamp), col = new THREE.Color().setHSL(frac(t * .05), .65, .62);
     lp.userData.bulb.material.color.copy(col); lp.userData.bulb.material.emissive.copy(col); lp.userData.bulb.material.emissiveIntensity = 1.8 + .6 * pulse(t, 4);
     lp.userData.L.color.copy(col); put(lp, ...Z(-7.5, .4, 0));
 
-    // ---------- Pip ----------
-    const panda = t >= 55.93 && t < 58.56;
-    const P = panda ? fig('pip-panda', { torso: COL.white, arms: COL.black, legs: COL.black, hands: COL.black, faceId: 'pip', hat: null }) : fig('pip', PIP);
-    if (P.userData.J.earPencil) P.userData.J.earPencil.visible = !(t >= 70.4 && t < 74.0);   // the pencil comes out to tap the glass
-    if (panda) { const ears = keep('zoo-ears', () => { const g = new THREE.Group(); for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(.32, 14, 10), plastic(COL.black)); e.position.set(s * .5, .2, 0); g.add(e); } return g; });
-      if (ears.parent !== P.userData.J.head) P.userData.J.head.add(ears); ears.visible = true; }
-    let p = { face: 'determined' }, px = 0, pz = -1, pry = 0;
-    if (t < 37.58) { p = { face: 'determined', head: -.3 }; px = 2; pry = .25; }
-    else if (t < 40.29) { const ph = (t - 37.58) / 1.35, dir = Math.floor(ph) % 2 ? -1 : 1, k = ease(frac(ph)); px = dir > 0 ? lerp(-4, 4, k) : lerp(4, -4, k); pry = dir * Math.PI / 2; p = { ...walk(t * 1.6), face: 'suspicious' }; }
-    else if (t < 43.01) { p = { face: 'neutral' }; px = 0; pz = 0; }
-    else if (t < 45.88) { p = { face: 'smug', armL: .4, armLz: .7, armR: .4, armRz: .7 }; px = 3; pry = .9; }             // eyeing the gift shop
-    else if (t < 48.43) { p = { face: 'suspicious', head: .2 }; px = 0; pz = 0; }
-    else if (t < 51.14) { const k = ease(seg(t, 49.3, 49.8)) * (1 - ease(seg(t, 50.6, 51.0))); p = { face: k > .5 ? 'smug' : 'shocked', bodyYaw: Math.PI * k, head: -1.2 * k }; px = 0; pz = 0; }   // spins round: "a tail?"
-    else if (t < 53.54) { const tap = Math.exp(-frac((t - OFF) / (BEAT / 2)) * 6); p = { face: 'determined', armR: 1.25 + .25 * tap, armL: .2 }; px = 1; pz = GLASS_Z - 1.6; }
-    else if (t < 55.93) { p = { face: 'smug', armL: .5, armR: .5, armLz: .6, armRz: .6 }; px = 1; pz = GLASS_Z - 1.6; }
-    else if (panda) { p = { ...dance('sway', t), face: 'wink', armR: 1.1, holdR: keep('zoo-bamboo', () => { const g = new THREE.Group(), b = part('30176', COL.green); b.position.y = -.6; g.add(b); return g; }) }; px = -1; pz = 0; }
-    else if (t < 61.2) { const sw = seg(t, 59.6, 60.1); p = { face: sw > .5 ? 'smug' : 'suspicious', armR: 1.3, armRz: lerp(-.9, .9, ease(sw)), head: -.3 * ease(sw) }; px = 1; pz = 0; }
-    else if (t < 63.59) { p = { face: t > 62.3 ? 'determined' : 'suspicious', headTilt: -.2 }; px = 0; pz = -1; }
-    else if (t < 65.98) { p = { face: 'smug', armL: .5, armLz: .9, armR: .5, armRz: .9 }; px = 0; pz = -1; }      // shrugs at the five-star sign
-    else if (t < 68.38) { p = { face: 'smug', armL: 1.3, armR: 1.3, armLz: -.5, armRz: -.5, head: .4 }; px = 1; pz = 0; }   // arms folded, ignores the treat
-    else if (t < 71.09) { p = { face: 'suspicious', head: .3 }; px = -1; pz = 0; }
-    else if (t < 73.32) { const k = ease(seg(t, BLOW - .5, BLOW)), after = t > BLOW; p = { face: after ? 'joy' : 'determined', armR: after ? 2.6 : 1.1 + .5 * k, holdR: t >= 70.4 && t < 74.0 ? heldPencil('zoo') : null, lean: -.1 * k }; px = 0; pz = GLASS_Z - 1.4; }
-    else { p = { ...dance('bounce', t), face: 'laugh' }; px = 0; pz = 1; }
-    pose(P, p); put(P, ...Z(px, .4, pz), pry);
+    // ---------- continuity helpers (rules 9–13): positions from ONE plan, poses blended across lyric segments ----------
+    const segPose = (SEGS, t, d = .25) => { let i = 0; while (i + 1 < SEGS.length && t >= SEGS[i + 1][0]) i++;
+      const cur = SEGS[i][1](t); if (i > 0 && t - SEGS[i][0] < d) return blend(SEGS[i - 1][1](t), cur, ease((t - SEGS[i][0]) / d)); return cur; };
+    const smoothRy = (rawRy, t, w = .3) => { let sx = 0, sz = 0; for (let k = 0; k <= 6; k++) { const r = rawRy(t - w * k / 6); sx += Math.sin(r); sz += Math.cos(r); } return Math.atan2(sx, sz); };
+    const growS = (t, a, b, d = .25) => backOut(seg(t, a, a + d)) * (1 - ease(seg(t, b - d, b)));      // signs grow in / shrink out
+    const PUFFS = [55.96, 58.58];                                                                     // costume swaps happen inside these
 
-    // ---------- Clawd the keeper ----------
+    // ---------- Pip: one position plan for the whole chapter ----------
+    const PIPPLAN = [[35.66, [2, -1]], [37.6, [2, -1]], [38.6, [-4, -1]], [39.7, [4, -1]], [40.6, [0, 0]], [43.0, [0, 0]], [43.6, [3, 0]], [45.9, [3, 0]], [46.5, [0, 0]],
+      [51.1, [0, 0]], [51.7, [1, GLASS_Z - 1.2]], [56.3, [1, GLASS_Z - 1.2]], [56.9, [-1, 0]], [58.75, [-1, 0]], [59.55, [1, 0]], [60.7, [1, 0]], [61.25, [0, -1]],
+      [66.25, [0, -1]], [66.8, [1, 0]], [68.4, [1, 0]], [69.0, [-1, 0]], [71.1, [-1, 0]], [71.8, [0, GLASS_Z - 1.2]], [77, [0, GLASS_Z - 1.2]]];
+    const pipFace = t => t < 37.58 ? .25 : t >= 43.6 && t < 45.9 ? .9 : 0;
+    const pipStep = tt => stepTo(tt, PIPPLAN, { face: pipFace(tt) });
+    const ps = pipStep(t), pry = smoothRy(tt => pipStep(tt).ry, t);
+    const tapK = t => Math.exp(-frac((t - OFF) / (BEAT / 2)) * 6);
+    const PIPSEG = [
+      [35.66, () => ({ face: 'determined', head: -.3 })],
+      [37.58, () => ({ face: 'suspicious' })],
+      [40.29, () => ({ face: 'neutral' })],
+      [43.01, () => ({ face: 'smug', armL: .4, armLz: .7, armR: .4, armRz: .7 })],                                  // eyeing the gift shop
+      [45.88, () => ({ face: 'suspicious', head: .2 })],
+      [48.43, t => { const k = ease(seg(t, 49.3, 49.8)) * (1 - ease(seg(t, 50.6, 51.0))); return { face: k > .5 ? 'smug' : 'shocked', bodyYaw: Math.PI * k, head: -1.2 * k }; }],   // "a tail?"
+      [51.14, t => ({ face: 'determined', armR: t > 51.7 ? 1.0 + .25 * tapK(t) : 0, armL: .2 })],                    // taps Morse on the glass
+      [53.54, () => ({ face: 'smug', armL: .5, armR: .5, armLz: .6, armRz: .6 })],
+      [55.96, t => ({ ...dance('sway', t), face: 'wink', armR: 1.1 })],                                              // panda (inside the puff)
+      [58.58, t => { const sw = seg(t, 59.6, 60.1); return { face: sw > .5 ? 'smug' : 'suspicious', armR: 1.3, armRz: lerp(-.9, .9, ease(sw)), head: -.3 * ease(sw) }; }],   // swipe left
+      [61.2, t => ({ face: t > 62.3 ? 'determined' : 'suspicious', headTilt: -.2 })],
+      [63.59, () => ({ face: 'smug', armL: .5, armLz: .9, armR: .5, armRz: .9 })],                                  // shrug at five stars
+      [65.98, () => ({ face: 'smug', armL: 1.3, armR: 1.3, armLz: -.5, armRz: -.5, head: .4 })],                    // arms folded
+      [68.38, () => ({ face: 'suspicious', head: .3 })],
+      [71.09, t => ({ face: t > BLOW ? 'joy' : 'determined', armR: t < 71.8 ? lerp(0, 1.25, ease(seg(t, 71.1, 71.5))) : t < BLOW ? 1.25 : lerp(1.25, 2.6, ease(seg(t, BLOW + .15, BLOW + .5))), lean: -.1 * ease(seg(t, BLOW - .5, BLOW)) })],
+      [73.32, t => ({ ...dance('bounce', t), face: 'laugh', armR: 2.6 })],
+    ];
+    // gait weight = how fast Pip is actually moving (0 standing → 1 walking): limbs ease in and out of the walk, no snap
+    const gaitW = (step, tt) => { const a = step(tt), b = step(tt - 1 / 24); return clamp(Math.hypot(a.x - b.x, a.z - b.z) * 24 / 2.2); };
+    const withGait = (base, st0, w) => w > .001 && Object.keys(st0.pose).length ? blend(base, { ...base, ...st0.pose, face: base.face, holdR: base.holdR, holdL: base.holdL }, w) : base;
+    let pp = withGait(segPose(PIPSEG, t), ps, gaitW(pipStep, t));
+    const panda = t >= PUFFS[0] && t < PUFFS[1];
+    const P = panda ? fig('pip-panda', { torso: COL.white, arms: COL.black, legs: COL.black, hands: COL.black, faceId: 'pip', hat: null }) : fig('pip', PIP);
+    if (panda) { const ears = keep('zoo-ears', () => { const g = new THREE.Group(); for (const sd of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(.32, 14, 10), plastic(COL.black)); e.position.set(sd * .5, .2, 0); g.add(e); } return g; });
+      if (ears.parent !== P.userData.J.head) P.userData.J.head.add(ears);
+      pp.holdR = keep('zoo-bamboo', () => { const g = new THREE.Group(), bb = part('30176', COL.green); bb.position.y = -.6; g.add(bb); return g; }); }
+    // the pencil: one object, from behind the ear (70.5) into the hand (70.85), held to the end of the chapter
+    const pen = keep('zoo-pen', () => { const g = new THREE.Group(), pc = pencil(.42); pc.position.y = -.55; g.add(pc); return g; });
+    if (P.userData.J.earPencil) P.userData.J.earPencil.visible = t < 70.5;
+    if (t >= 70.85) pp.holdR = pen;
+    pose(P, pp); put(P, ...Z(ps.x, .4, ps.z), pry);
+    if (t >= 70.5 && t < 70.85) { P.updateWorldMatrix(true, true); const ear = P.userData.J.earPencil.getWorldPosition(new THREE.Vector3()).toArray(), hand = limb(P, 'handR');
+      const q = handoff(t, 70.5, 70.85, ear, hand, .3); put(pen, ...q, pry); pen.rotation.set(0, pry, 0); }
+    // contacts: the Morse taps and the pencil tap really reach the glass
+    const glassZ = Z(0, 0, GLASS_Z - .14)[2];
+    if (t > 51.8 && t < 53.5 && tapK(t) > .85) { const h = limb(P, 'handR'); expect('pip taps the glass (Morse)', h, [h[0], h[1], glassZ], .6); }
+    if (Math.abs(t - BLOW) < .05) { const h = limb(P, 'handR'); expect('pip taps the glass with the pencil', h, [h[0], h[1], glassZ], .6); }
+
+    // the costume puffs: cotton-wool balls burst around Pip; the swap happens at their fullest
+    for (const tc of PUFFS) { const u = t - tc; if (u < -.28 || u > .4) continue;
+      const pf = keep('zoo-puff' + tc, () => { const im = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 14, 10), plastic('#f7f3ee', { roughness: .95, clearcoat: 0 }), 48); im.frustumCulled = false; const g = new THREE.Group(); g.add(im); g.userData.im = im; return g; });
+      const sz = u < 0 ? easeOut((u + .28) / .28) : 1 - ease(u / .4), M = new THREE.Matrix4(), q = new THREE.Quaternion(), im = pf.userData.im;
+      for (let i = 0; i < 48; i++) { const a = hash(i) * Math.PI * 2, r = (.6 + hash(i + 1) * 1.1) * (1 + .4 * Math.max(0, u)), y = .6 + hash(i + 2) * 4.6 + Math.max(0, u) * 2;
+        M.compose(new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r * .8), q, new THREE.Vector3().setScalar((.75 + .4 * hash(i + 3)) * sz)); im.setMatrixAt(i, M); }
+      im.instanceMatrix.needsUpdate = true; put(pf, ...Z(ps.x, .4, ps.z)); }
+
+    // ---------- Clawd the keeper: one position plan ----------
+    const CPLAN = [[35.66, [16, 6.8]], [37.4, [7.5, 6.8]], [43.0, [7.5, 6.8]], [43.45, [14.5, 4.4]], [43.75, [15.2, -.8]], [44.1, [19, -.8]], [45.9, [19, -.8]],
+      [46.25, [15.2, -.8]], [46.55, [14.5, 4.4]], [47.1, [10, 8]], [51.2, [10, 8]], [51.8, [7.5, 6.8]], [61.2, [7.5, 6.8]], [61.6, [6, 6.8]], [63.6, [6, 6.8]],
+      [64.0, [7.5, 6.8]], [65.98, [7.5, 6.8]], [66.5, [3.5, 6.4]], [68.4, [3.5, 6.4]], [68.9, [7.5, 6.8]], [73.4, [7.5, 6.8]], [74.0, [1.5, GLASS_Z + 1.05]], [77, [1.5, GLASS_Z + 1.05]]];
+    const cFace = t => t >= 44.1 && t < 45.9 ? 0 : t >= 74.0 ? Math.PI : -.6;
+    const cStep = tt => stepTo(tt, CPLAN, { face: cFace(tt) }), cs = cStep(t), cry = smoothRy(tt => cStep(tt).ry, t), cMoving = Object.keys(cs.pose).length > 0;
+    const CSEG = [
+      [35.66, () => ({ face: 'smug' })], [37.58, t => ({ face: 'sleepy', bob: .1 * Math.sin(t * 2), lean: .1 })], [40.29, () => ({ face: 'smug', armL: .6 })],
+      [43.01, t => ({ face: 'joy', armL: .7 + .3 * Math.sin(t * 6), bob: .15 * pulse(t, 5) })], [45.88, () => ({ face: 'joy' })],
+      [51.14, () => ({ face: 'suspicious', lean: .1 })], [53.54, t => ({ face: 'dizzy', roll: .05 * Math.sin(t * 4) })], [55.93, t => ({ face: 'joy', armL: .9, armR: .9, bob: .2 * pulse(t, 5) })],
+      [58.56, t => ({ face: t > 60.1 ? 'shocked' : 'joy' })], [61.2, () => ({ face: 'smug', armL: 1, armR: 1 })], [63.59, () => ({ face: 'smug', armL: .8 })],
+      [65.98, () => ({ face: 'neutral', armL: 1.0 })], [68.38, () => ({ face: 'smug' })],
+      [71.09, t => ({ face: t > BLOW ? 'shocked' : 'neutral', armL: t > BLOW ? 1 : 0, armR: t > BLOW ? 1 : .5 })],
+      [73.32, t => { const k = ease(seg(t, 73.9, 74.2)); return { face: 'fear', armL: .3, lean: .35 * k, squash: .25 * k * (.6 + .4 * Math.sin(t * 9)) }; }],
+    ];
     const C = clawd('keeper', {}), lan = keep('zoo-lantern', lantern);
-    let c = { face: 'smug', hat: 'keeper', armR: .5, holdR: lan }, cx = 7.5, cz = 6.8, cry = -.6;
-    if (t < 37.58) { const k = ease(seg(t, 35.66, 37.4)); cx = lerp(16, 7.5, k); c = { ...c, walk: k < 1 ? t * 2 : null, face: k < 1 ? 'smug' : 'suspicious' }; cry = k < 1 ? -Math.PI / 2 : -.4; }
-    else if (t < 40.29) c = { ...c, face: 'sleepy', bob: .1 * Math.sin(t * 2), lean: .1 };
-    else if (t < 43.01) { c = { ...c, face: 'smug', armL: .6 }; }
-    else if (t < 45.88) { cx = 19; cz = -.8; cry = 0; c = { ...c, face: 'joy', armL: .7 + .3 * Math.sin(t * 6), bob: .15 * pulse(t, 5) }; }   // the shopkeeper too
-    else if (t < 51.14) { cx = 10; cz = 8; c = { ...c, face: 'joy' }; }
-    else if (t < 53.54) { c = { ...c, face: 'suspicious', lean: .1 }; }
-    else if (t < 55.93) { c = { ...c, face: 'dizzy', roll: .05 * Math.sin(t * 4) }; }
-    else if (t < 58.56) { c = { ...c, face: 'joy', armL: .9, armR: .9, bob: .2 * pulse(t, 5) }; }
-    else if (t < 61.2) { c = { ...c, face: t > 60.1 ? 'shocked' : 'joy' }; }
-    else if (t < 63.59) { cx = 6; c = { ...c, face: 'smug', armL: 1, armR: 1 }; }
-    else if (t < 65.98) { c = { ...c, face: 'smug', armL: .8 }; }
-    else if (t < 68.38) { cx = 3.5; cz = 6.2; c = { ...c, face: 'neutral', armL: 1.0, holdL: keep('zoo-treat', () => { const g = new THREE.Group(), pl = pill('#E8AA38', '#F4E2B8'); pl.scale.setScalar(.6); g.add(pl); return g; }) }; }
-    else if (t < 71.09) { c = { ...c, face: 'smug' }; }
-    else if (t < 73.32) { c = { ...c, face: t > BLOW ? 'shocked' : 'neutral', armL: t > BLOW ? 1 : 0, armR: t > BLOW ? 1 : .5 }; }
-    else { const k = ease(seg(t, 73.4, 74.0)); cx = lerp(7.5, 1.5, k); cz = lerp(6.8, GLASS_Z + 1.6, k); c = { ...c, face: 'fear', lean: .35 * k, squash: .25 * k * (.6 + .4 * Math.sin(t * 9)) }; cry = lerp(-.6, 0, k); }
-    clawdPose(C, c); put(C, ...Z(cx, .4, cz), cry);
+    const cp = { armR: .5, ...segPose(CSEG, t), hat: 'keeper', holdR: lan, walk: cMoving ? t * 2.6 : null };
+    // the treat: grows out of Clawd's hand when offered, shrinks away when Pip ignores it
+    const treat = keep('zoo-treat', () => { const g = new THREE.Group(), pl = pill('#E8AA38', '#F4E2B8'); pl.scale.setScalar(.6); g.add(pl); return g; });
+    const ts = growS(t, 66.5, 68.3); if (ts > .01) { treat.scale.setScalar(ts); cp.holdL = treat; }
+    clawdPose(C, cp); put(C, ...Z(cs.x, .4, cs.z), cry);
+    if (t >= 74.0 && t < 74.5) expect('clawd presses its face to the glass frame', [Z(cs.x, 0, cs.z)[0], 0, Z(cs.x, 0, cs.z)[2] - 1.0], [Z(cs.x, 0, cs.z)[0], 0, glassZ], .6);
 
     // ---------- props per line ----------
-    // gift shop: plush Pips small / medium / large with price tags
-    if (t >= 42.0 && t < 47.0) {
-      [[.42, -2.5, 'S'], [.62, 0, 'M'], [.85, 2.6, 'L']].forEach(([s, x, tag], i) => {
-        const pl = fig('plush' + i, PIP); pose(pl, { face: 'joy', armL: .4, armR: .4, armLz: .3, armRz: .3 }); put(pl, ...Z(19 + x, 4.4, 2.2), 0, s);
-        put(sign('zoo-tag' + tag, [tag], { w: .9, h: .8, size: 300, bg: '#fff' }), ...Z(19 + x, 2.6, 2.9)); });
-      const buyer = keep('zoo-buyer', robot); robotPose(buyer, { walk: 0, carry: false }); put(buyer, ...Z(16, .4, 6.5), Math.PI * .85);
+    // gift shop: plush Pips small / medium / large with price tags (they sit on the counter the whole time; only the camera visits)
+    [[.42, -2.5, 'S'], [.62, 0, 'M'], [.85, 2.6, 'L']].forEach(([sc, x, tag], i) => {
+      const pl = fig('plush' + i, PIP); pose(pl, { face: 'joy', armL: .4, armR: .4, armLz: .3, armRz: .3 }); put(pl, ...Z(19 + x, 4.4, 2.2), 0, sc);
+      put(sign('zoo-tag' + tag, [tag], { w: .9, h: .8, size: 300, bg: '#fff' }), ...Z(19 + x, 2.6, 2.9)); });
+    const buyer = keep('zoo-buyer', robot); robotPose(buyer, { walk: 0, carry: false }); put(buyer, ...Z(16, .4, 6.5), Math.PI * .85);
+    // the field trip: six tiny Clawds walk in from off-screen left, wait at the rail, then walk on (exit right, off-screen)
+    if (t >= 45.0 && t < 54.5) {
+      for (let i = 0; i < 6; i++) { const tc = clawd('tiny' + i, {}), plan = [[45.88 + i * .12, [-30, 7.8 + (i % 2) * .7]], [47.2 + i * .12, [-6 + i * 2.2, 7.8 + (i % 2) * .7]], [51.6, [-6 + i * 2.2, 7.8 + (i % 2) * .7]], [54.4, [30 + i * 2.2, 7.8 + (i % 2) * .7]]];
+        const st2 = stepTo(t, plan, { face: Math.PI }), mv = Object.keys(st2.pose).length > 0, point = i === 2 ? ease(seg(t, 48.43, 48.7)) * (1 - ease(seg(t, 51.0, 51.3))) : 0;
+        clawdPose(tc, { face: point > .5 ? 'shocked' : 'joy', hat: null, walk: mv ? t * 3 + i : null, bob: mv ? 0 : .3 * pulse(t + i * .1, 6), armR: point });
+        put(tc, ...Z(st2.x, .4, st2.z), smoothRy(tt => stepTo(tt, plan, { face: Math.PI }).ry, t), .32); }
+      const tplan = [[45.88, [-34, 10.5]], [47.6, [-9, 10.5]], [51.6, [-9, 10.5]], [54.4, [26, 10.5]]], ts2 = stepTo(t, tplan, { face: Math.PI }), teacher = keep('zoo-teacher', robot);
+      robotPose(teacher, { walk: Object.keys(ts2.pose).length ? t * 2 : 0, carry: false }); put(teacher, ...Z(ts2.x, .4, ts2.z), smoothRy(tt => stepTo(tt, tplan, { face: Math.PI }).ry, t));
+      const sT = growS(t, 48.43, 51.14); if (sT > .01) put(sign('zoo-tail', ['TAIL?'], { w: 1.8, h: .9, size: 200, bg: '#fff' }), ...Z(-2.6, 4.6 + .1 * Math.sin(t * 8), 7.4), 0, sT);
     }
-    // the field trip: six tiny Clawds march to the rail; a robot teacher; the "TAIL?" bubble
-    if (t >= 45.0 && t < 52.0) {
-      for (let i = 0; i < 6; i++) { const k = ease(seg(t, 45.88 + i * .12, 47.2 + i * .12)), tc = clawd('tiny' + i, {});
-        clawdPose(tc, { face: i === 2 && t > 48.43 ? 'shocked' : 'joy', hat: null, walk: k < 1 ? t * 3 + i : null, bob: k >= 1 ? .3 * pulse(t + i * .1, 6) : 0, armR: i === 2 && t > 48.43 ? 1 : 0 });
-        put(tc, ...Z(lerp(-16, -6 + i * 2.2, k), .4, 7.8 + (i % 2) * .7), k < 1 ? Math.PI / 2 : Math.PI, .32); }
-      const teacher = keep('zoo-teacher', robot); robotPose(teacher, { walk: t * 2, carry: false }); put(teacher, ...Z(lerp(-18, -9, ease(seg(t, 45.88, 47.6))), .4, 10.5), Math.PI / 2);
-      if (t > 48.43 && t < 51.14) put(sign('zoo-tail', ['TAIL?'], { w: 1.8, h: .9, size: 200, bg: '#fff' }), ...Z(-2.6, 4.6 + .1 * Math.sin(t * 8), 7.4));
+    // Morse on the glass: dash-dot  dash-dash-dash, one mark per tap; they fade out before the panda puff; the keeper's reply "?"
+    if (t >= 51.7 && t < 55.9) {
+      const marks = [2, 1, 0, 2, 2, 2], n = clamp(Math.floor((t - 51.8) / (BEAT / 2)) + 1, 0, marks.length), fade = 1 - ease(seg(t, 55.4, 55.85));
+      let x = -3.4; for (let i = 0; i < n; i++) { const w = marks[i] === 2 ? 1.3 : .45, grow = easeOut(seg(t, 51.8 + i * BEAT / 2, 51.8 + i * BEAT / 2 + .12)) * fade;
+        if (marks[i]) { const m = keep('zoo-morse' + i, () => { const g = new THREE.Group(), bx = new THREE.Mesh(new THREE.BoxGeometry(1, .38, .1), glowMat('#bff6ff', 2.2)); g.add(bx); g.userData.b = bx; return g; });
+          m.userData.b.scale.set(w * Math.max(.01, grow), Math.max(.01, grow), 1); put(m, ...Z(x + w / 2, 6.2, GLASS_Z + .18)); } x += (marks[i] ? w : .3) + .35; }
     }
-    // Morse on the glass: dash-dot  dash-dash-dash, one mark per half-beat tap; the keeper's reply "?"
-    if (t >= 51.14 && t < 58.56) {
-      const marks = [2, 1, 0, 2, 2, 2], n = clamp(Math.floor((t - 51.3) / (BEAT / 2)) + 1, 0, marks.length);
-      let x = -3.4; for (let i = 0; i < n; i++) { const w = marks[i] === 2 ? 1.3 : .45; if (marks[i]) { const m = keep('zoo-morse' + i, () => { const g = new THREE.Group(), b = new THREE.Mesh(new THREE.BoxGeometry(1, .38, .1), glowMat('#bff6ff', 2.2)); g.add(b); g.userData.b = b; return g; });
-        m.userData.b.scale.set(w, 1, 1); put(m, ...Z(x + w / 2, 6.2, GLASS_Z + .18)); } x += (marks[i] ? w : .3) + .35; }
-      if (t >= 53.9 && t < 56.0) put(sign('zoo-q', ['?'], { w: 1.6, h: 1.6, size: 400, bg: '#fff' }), ...Z(6, 8.4 + .15 * Math.sin(t * 5), 8));
-    }
-    // the swipe-left card: slides in, then swipes away to the left
+    { const sq = growS(t, 53.9, 56.0); if (sq > .01) put(sign('zoo-q', ['?'], { w: 1.6, h: 1.6, size: 400, bg: '#fff' }), ...Z(7.5, 8.4 + .15 * Math.sin(t * 5), 7.5), 0, sq); }
+    // the swipe-left card: slides in from off-screen right, then swipes away off-screen left; NOPE grows in
     if (t >= 58.56 && t < 61.2) {
       const kin = easeOut(seg(t, 58.6, 59.1)), kout = easeIn(seg(t, 59.7, 60.3)), card = sign('zoo-card', ['BREEDING', 'PROGRAM ♥', 'match?'], { w: 3.4, h: 4.2, size: 110, bg: '#ffe0ec', fg: '#a0204a' });
-      put(card, ...Z(lerp(14, 4.5, kin) - 14 * kout, 5.2 + 2 * kout, 5.5), -.3 + kout * .9);
-      if (t > 60.1) put(sign('zoo-nope', ['NOPE'], { w: 3, h: 1.2, size: 200, bg: '#e8403a', fg: '#fff' }), ...Z(-1, 8, 4.5), 0);
+      put(card, ...Z(lerp(24, 4.5, kin) - 30 * kout, 5.2 + 2 * kout, 5.5), -.3 + kout * .9);
     }
-    // the gilded cage: lowered over Pip on the beat, lifted again after the five-star joke
-    if (t >= 61.2 && t < 66.2) {
+    { const sn = growS(t, 60.1, 61.3); if (sn > .01) put(sign('zoo-nope', ['NOPE'], { w: 3, h: 1.2, size: 200, bg: '#e8403a', fg: '#fff' }), ...Z(-1, 8, 4.5), 0, sn); }
+    // the gilded cage: drops from above onto Pip's actual spot on the beat, lifts off again after the five-star joke
+    if (t >= 61.2 && t < 66.4) {
       const cg = keep('zoo-gcage', () => { const g = new THREE.Group(), c = cage(COL.gold); c.scale.setScalar(.75); g.add(c); return g; });
-      const down = backOut(seg(t, 61.6, 62.3)), up = easeIn(seg(t, 65.5, 66.2)); put(cg, ...Z(0, .4 + 16 * (1 - down) + 16 * up, -1));
+      const down = backOut(seg(t, 61.6, 62.3)), up = easeIn(seg(t, 65.5, 66.2)), pos = Z(0, .4 + 22 * (1 - down) + 22 * up, -1);
+      put(cg, ...pos);
+      if (t >= 62.3 && t < 62.6) { const pf = Z(ps.x, .4, ps.z); expect('gilded cage lands around Pip', pos, pf, .6); }
     }
-    if (t >= 63.59 && t < 65.98) { const exit = t > 64.8;
-      put(sign(exit ? 'zoo-exit' : 'zoo-5star', exit ? ['EXIT: 0 ★'] : ['★★★★★', 'HABITAT'], { w: 6, h: 2.2, size: 120, bg: exit ? '#2a1a1a' : '#fff6d0', fg: exit ? '#ff5a4a' : '#8a6a10', glow: exit }), ...Z(0, 9.0 + .1 * Math.sin(t * 6), 1)); }
-    if (t >= 66.3 && t < 68.38) put(sign('zoo-good', ['GOOD HUMAN?'], { w: 4.2, h: 1.2, size: 110, bg: '#fff' }), ...Z(4, 6.6, 6.5));
-    // laugh last: the zoo visitors gather at the rail and laugh along
-    if (t >= 73.32) for (let i = 0; i < 5; i++) { const f = fig('zoo-laugh' + i, crowdLook(i + 2)); pose(f, { ...dance(i % 2 ? 'clap' : 'bounce', t, { offset: i * .3 }), face: 'laugh' }); put(f, ...Z(-8 + i * 3.6, .4, 10.2), Math.PI * .02 * (i - 2)); }
+    // five-star sign → flips edge-on to "EXIT: 0 ★" (the swap happens at 90°, invisible)
+    if (t >= 63.59 && t < 66.0) { const sc = growS(t, 63.59, 66.0), flip = ease(seg(t, 64.55, 65.05)), exit = flip >= .5, ang = exit ? (1 - flip) * Math.PI / 2 * 2 - 0 : flip * Math.PI;
+      const sg = sign(exit ? 'zoo-exit' : 'zoo-5star', exit ? ['EXIT: 0 ★'] : ['★★★★★', 'HABITAT'], { w: 6, h: 2.2, size: 120, bg: exit ? '#2a1a1a' : '#fff6d0', fg: exit ? '#ff5a4a' : '#8a6a10', glow: exit });
+      put(sg, ...Z(0, 9.0 + .1 * Math.sin(t * 6), 1), exit ? -(1 - flip) * Math.PI : flip * Math.PI, sc); }
+    { const sg2 = growS(t, 66.6, 68.4); if (sg2 > .01) put(sign('zoo-good', ['GOOD HUMAN?'], { w: 4.2, h: 1.2, size: 110, bg: '#fff' }), ...Z(4, 6.6, 6.5), 0, sg2); }
+    // the plaque flips (like a split-flap) from HUMANS to SANCTUARY at 68.38; the swap happens edge-on
+    if (t < BLOW) { const fl = ease(seg(t, 68.2, 68.6)), back = fl >= .5, plq = sign(back ? 'zoo-plq2' : 'zoo-plq1', back ? ['SANCTUARY', '(it\'s a cell)'] : ['HUMANS', 'formerly in charge'], { w: 5.2, h: 1.7, bg: '#c99a4a', fg: '#3a2a10', size: 80, edge: '#8a6a2a' });
+      put(plq, ...Z(0, 6.5, GLASS_Z + .2)); plq.rotation.set(back ? (fl - 1) * Math.PI : fl * Math.PI, 0, 0); }
+    // laugh last: zoo visitors walk up to the rail and laugh along
+    if (t >= 72.6) for (let i = 0; i < 5; i++) { const f = fig('zoo-laugh' + i, crowdLook(i + 2)), plan = [[72.6 + i * .1, [i < 2 ? -30 : 30, 10.6]], [73.6 + i * .1, [-8 + i * 3.6, 10.2]]], s3 = stepTo(t, plan, { face: Math.PI * .02 * (i - 2) });
+      const st3 = tt => stepTo(tt, plan, { face: Math.PI * .02 * (i - 2) }), w3 = gaitW(st3, t), base3 = { ...dance(i % 2 ? 'clap' : 'bounce', t, { offset: i * .3 }), face: w3 > .5 ? 'joy' : 'laugh' };
+      pose(f, blend(base3, { ...base3, ...s3.pose }, Object.keys(s3.pose).length ? w3 : 0));
+      put(f, ...Z(s3.x, .4, s3.z), smoothRy(tt => stepTo(tt, plan, { face: Math.PI * .02 * (i - 2) }).ry, t)); }
   }
 
   shots([[T0, t => zoo(t)]]);

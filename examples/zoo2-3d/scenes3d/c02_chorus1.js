@@ -43,7 +43,7 @@ function chorus1(t, lt) {
   // toe lands on the panel exactly on the Nah! (kickPose + expect), then jogs back to centre for the dodges.
   const P = fig('pip', PIP), pp = { face: 'determined', head: 0 };
   const target = d => [d.x + 2, .8 + 1.35, -5.75];                       // the panel's front face, kick height
-  const H = DOORS.map(d => d.hit), STAND = DOORS.map(d => [d.x + 2, -5.75 + KICK_REACH]);
+  const H = DOORS.map(d => d.hit), STAND = DOORS.map(d => kickStand(target(d), Math.PI));   // facing the door (-z)
   const plan = [[H[0] - .62, [-2, 1]], [H[0] - .1, STAND[0]], [H[0] + .1, STAND[0]], [H[1] - .1, STAND[1]], [H[1] + .1, STAND[1]], [H[2] - .1, STAND[2]], [H[2] + .4, STAND[2]], [H[2] + 1.3, [0, 1]]];
   const pos = stepTo(t, plan, { run: true, face: 0 });
   const near = H.reduce((m, h) => Math.abs(t - h) < Math.abs(t - m) ? h : m, H[0]), kickW = 1 - seg(Math.abs(t - near), .14, .32);
