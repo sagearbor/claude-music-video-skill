@@ -147,7 +147,7 @@ function pose(f, p = {}) {
   J.body.position.y = 3.6 + q.bodyY; J.body.rotation.set(0, q.bodyYaw, q.bodyRoll);
   if (J.printHead) J.printHead.rotation.y = BACK_FACES.has(q.face) && TWO_SIDED.has(look.head) ? Math.PI : 0;   // spin to the second print
   else { J.face.material.map = faceTexture(q.face, look.faceId || (look.glasses ? 'pip' : 'classic')); J.face.material.needsUpdate = true; }
-  for (const s of ['L', 'R']) { const gp = J['grip' + s]; while (gp.children.length) gp.remove(gp.children[0]); if (q['hold' + s]) gp.add(q['hold' + s]); }
+  for (const s of ['L', 'R']) { const gp = J['grip' + s]; while (gp.children.length) gp.remove(gp.children[0]); if (q['hold' + s]) { const h = q['hold' + s]; h.position.set(0, 0, 0); h.rotation.set(0, 0, 0); gp.add(h); } }   // a prop that was put() in the world keeps that transform: reset it (scale stays: grow/shrink effects)
   return f;
 }
 // gaits (ph = cycles; stiff: legs swing as straight hinges, arms counter-swing)
@@ -225,7 +225,7 @@ function clawdPose(c, p = {}) {
   J.body.scale.set(1 + (p.squash || 0) * .3, 1 - (p.squash || 0) * .3, 1 + (p.squash || 0) * .3);
   J.face.material.map = clawdFaceTex(p.face || 'neutral'); J.face.material.needsUpdate = true;
   for (const [k, h] of Object.entries(J.hats)) h.visible = p.hat === k;
-  for (const s of ['L', 'R']) { const gp = J['grip' + s]; while (gp.children.length) gp.remove(gp.children[0]); if (p['hold' + s]) gp.add(p['hold' + s]); }
+  for (const s of ['L', 'R']) { const gp = J['grip' + s]; while (gp.children.length) gp.remove(gp.children[0]); if (p['hold' + s]) { const h = p['hold' + s]; h.position.set(0, 0, 0); h.rotation.set(0, 0, 0); gp.add(h); } }
   return c;
 }
 
@@ -348,10 +348,13 @@ function field(key, o, t) {
   const sprouts = keep('sprout:' + key, () => { const l = []; for (let r = 0; r < rows; r++) for (let x = 0; x < len; x += 2) { const k = (r + (r % 2 ? (len - x) / len : x / len)) / rows; l.push(['30176', COL.green, x - len / 2 + 1, .8, r * 2.4 - rows * 1.2 + .5, hash(r * 31 + x) * 6, lerp(t0, t1, k) + 2]); } return growing(l); });
   sprouts.userData.grow(t); put(sprouts, o.at[0], 0, o.at[1]);
   // the sower walks the boustrophedon path
+  // the sower walks the rows boustrophedon; the last 12% of each row is the turn: a short walk across to the next furrow
   const k = clamp((t - t0) / (t1 - t0)), rr = Math.min(rows - 1, Math.floor(k * rows)), u = k * rows - rr, dir = rr % 2 ? -1 : 1;
-  const f = fig('sower:' + key, crowdLook(o.look ?? 2)), x = o.at[0] + (dir > 0 ? lerp(-len / 2, len / 2, u) : lerp(len / 2, -len / 2, u)), z = o.at[1] + rr * 2.4 - rows * 1.2 - .6;
-  pose(f, { ...walkPose(st(t) * 1.2), armR: 1.2 + .3 * Math.sin(st(t) * 9), face: 'joy' });
-  put(f, x, 0, z, dir * Math.PI / 2);
+  const along = Math.min(1, u / .88), turn = ease(seg(u, .88, 1)) * (rr < rows - 1 ? 1 : 0);
+  const f = fig('sower:' + key, crowdLook(o.look ?? 2)), x = o.at[0] + (dir > 0 ? lerp(-len / 2, len / 2, along) : lerp(len / 2, -len / 2, along)), z = o.at[1] + (rr + turn) * 2.4 - rows * 1.2 - .6;
+  const ry = turn > 0 && turn < 1 ? lerp(dir * Math.PI / 2, 0, Math.sin(Math.PI * turn)) : dir * Math.PI / 2;
+  pose(f, { ...walk(t * 1.2), armR: 1.2 + .3 * Math.sin(t * 9), face: 'joy' });
+  put(f, x, 0, z, ry);
 }
 
 // ---------- world helpers ----------

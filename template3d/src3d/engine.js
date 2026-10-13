@@ -331,7 +331,9 @@ function karaoke(t, ctx) {
   const [a, b, txt] = L, grow = easeOut((t - a) / .15) * (1 - ease((t - (b - .02)) / .12)); if (grow < .02) return;
   const big = /^\(WE DO!\)$/.test(txt), size = big ? 110 : 56, font = `${size}px "Permanent Marker", cursive`;
   ctx.save(); ctx.font = font;
-  const tw = ctx.measureText(txt).width, w = (tw + 110) * grow, hh = big ? 160 : 90, x0 = 960 - w / 2, y0 = big ? 850 : 962;
+  // the bar opens from a pill already its full height (never a tiny ring) and fades in with it
+  const tw = ctx.measureText(txt).width, hh = big ? 160 : 90, w = hh + (tw + 110 - hh) * grow, x0 = 960 - w / 2, y0 = big ? 850 : 962;
+  ctx.globalAlpha = Math.min(1, grow * 2.5);
   ctx.fillStyle = 'rgba(24,20,30,.80)'; ctx.beginPath(); ctx.roundRect(x0, y0, w, hh, hh / 2); ctx.fill();
   ctx.strokeStyle = 'rgba(255,214,120,.9)'; ctx.lineWidth = 4; ctx.stroke();   // a yellow plastic rim, like a brick tile edge
   if (grow > .85) {
@@ -376,6 +378,7 @@ let EXPECTS = [];
 function expect(name, a, b, maxDist = .6) { const d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); EXPECTS.push({ name, d: +d.toFixed(2), ok: d <= maxDist, maxDist }); }
 function buildFrame(t) {
   T = t; ROOT.clear(); resetView(); FRAME_OVERLAYS = []; EXPECTS = [];
+  ROOT.matrix.identity(); ROOT.updateMatrixWorld(true);   // no squash left over from the previous frame (limb() measures during the shot)
   if (window.LOOP) window.LOOP(t);
   else if (SHOTS.length) {
     const i = shotIndex(t), since = t - SHOTS[i][0];
@@ -388,7 +391,7 @@ function buildFrame(t) {
   const camObj = applyView();
   if (!window.LOOP || window.LOOP.world) {
     const c = new THREE.Vector3(...VIEW.look); window.__camLook = VIEW.look;   // districts may LOD by distance to the look point
-    for (const d of DISTRICTS) if (d.always || Math.hypot(d.at[0] - c.x, d.at[1] - c.z) < d.r + 260) d.fn(t);
+    for (const d of DISTRICTS) if (d.always || Math.hypot(d.at[0] - c.x, d.at[1] - c.z) < d.r + 1600) d.fn(t);   // wide: a district popping in on the horizon (or seen from the moon) is a visible pop
   }
   scene.updateMatrixWorld(true);
   for (const e of EXPECTS) if (!e.ok) console.warn(`expect "${e.name}" failed at t=${t.toFixed(3)}: distance ${e.d} > ${e.maxDist}`);

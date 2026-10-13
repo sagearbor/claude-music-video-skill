@@ -146,8 +146,8 @@ const EGGS = {
     put(bike, px, 0, pz, yaw);
     const rb = keep(key + ':daisybot', robot); robotPose(rb, { walk: 0, carry: false });
     put(rb, px - Math.sin(yaw) * 1.3, -.6, pz - Math.cos(yaw) * 1.3, yaw);
-    const p = fig('daisyrider', crowdLook(5)); pose(p, { legL: .8 * Math.sin(t * 6), legR: -.8 * Math.sin(t * 6), armL: 1, armR: 1, face: 'sing', bodyY: -1.3 });
-    put(p, px + Math.sin(yaw) * 1.3, .2, pz + Math.cos(yaw) * 1.3, yaw);
+    const p = fig(key + ':daisyrider', crowdLook(5)); pose(p, { legL: 1.3 + .45 * Math.sin(t * 6), legR: 1.3 - .45 * Math.sin(t * 6), armL: 1, armR: 1, face: 'sing', bodyY: -1.2 });   // seated: thighs forward, pedalling
+    put(p, px + Math.sin(yaw) * 1.3, 1.1, pz + Math.cos(yaw) * 1.3, yaw);
     put(sign(key + ':daisy', ['♪ Daisy, Daisy... ♪'], { w: 4, h: 1.1, size: 70, post: true, postH: 1.2 }), x, 0, z, 0);
   },
   // generic roadside billboard

@@ -34,6 +34,23 @@ once it has held for two videos.
   don't bevel heads.
 - BFC: an uncertified parent makes its children two-sided (found by a new unit test).
 
+**Your review of v1 → the continuity round (the biggest lesson of this video)**
+The first full cut looked good in contact sheets but had motion errors a viewer spots instantly: kicks into thin air,
+keys blinking between hands that weren't near each other, a pencil writing with the eraser, bodies teleporting at shot
+changes (37/41/46/51 s), a costume swap in plain view (panda), people rising through a solid floor with their legs
+appearing later. **Contact sheets sample every ~0.5 s and cannot see a 1-frame pop.** What fixed it, now part of the skill:
+- `tools/continuity.mjs` simulates EVERY frame without rendering (~5 s per song-minute) and flags spike TELEPORTs, joint
+  SNAPs, UNDERGROUND feet, failed CONTACT assertions, and POPs (things appearing/vanishing in view). It found every one of
+  your timestamps by itself. It must fail on page errors: a chapter that doesn't parse otherwise lints "clean" by vanishing.
+- **Interactions are assertions**: `expect(name, limb(fig, 'footR'), target)` on the contact frame; helpers `kickAt`,
+  `stepTo` (walk phase from distance, so no foot sliding; stride grows with speed), `handoff` (prop travels hand to hand).
+- The engine **blends actors across shot boundaries** (0.25 s, from the previous shot's last frame: still a pure function).
+- Track props as actors too (every `keep()`-ed object), not just people; loops must hide their wrap (scale to 0).
+- Smaller rules found by agents and fixed centrally: held props must reset their transform on attach (they kept their
+  world position: 300-stud jumps in the parallel render); measure limbs with no squash left from the last frame; a whole
+  district must not pop in at a draw-distance edge (draw the small world fully); costume swaps happen under a puff.
+- **The gate is the whole song**, not each chapter: districts are visible from other chapters' time ranges.
+
 **Weak in the result (try next time)**
 - Flights between far districts sometimes look down at empty grass for 1–2 s; aim the flight's look point at the horizon.
 - Finale crowd shots are busy; Pip gets lost. Give the hero a contrasting rim light or a clearing.
