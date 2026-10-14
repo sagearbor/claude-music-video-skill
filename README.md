@@ -27,6 +27,10 @@ without an .srt.
 Want fewer or more stops?
 - `--skip=storyboard`, `--skip=pilot`, or `--skip=all` (alias `--auto`) skip those approvals. The work is still done
   and self-reviewed, and what Claude decided on its own is written to `DECISIONS.md`.
+- `--style=painted|editorial|keynote|geometric|hybrid` picks the look: the original hand-painted cartoon, or crisp
+  vector motion design (paper-and-serif editorial, dark keynote, Swiss geometric, or editorial verses with keynote
+  choruses). Unset, Claude renders one still per style for you to pick from. `--lyrics`, `--density`, `--human=PHOTO`
+  and `--dir` set the other interview choices, so `--auto` plus flags is a one-command, fully automated run.
 - `--design` adds a stage before any animation: character model sheets, palette swatches and one style frame per
   chapter, iterated with you until the look is right.
 
