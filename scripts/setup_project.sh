@@ -12,6 +12,9 @@ git clone -q https://github.com/JohnHeibel/ClaudeAnimationBase.git "$DIR"
 git -C "$DIR" checkout -q "$PIN"
 (cd "$DIR" && npm install --silent)
 cp "$HERE/template/src/cast.js" "$DIR/src/cast.js"
+mkdir -p "$DIR/design" && cp "$HERE/template/design/style_tests.mjs" "$DIR/design/"   # G0 style stills
+# vector styles: engine (self-disables when PROJECT.style is 'painted'), kinetic type, Clawd/props/rivals, shared sets
+mkdir -p "$DIR/src/vec" "$DIR/src/scenes" && cp "$HERE"/template/src/vec/*.js "$DIR/src/vec/" && cp "$HERE/template/src/scenes/sets.js" "$DIR/src/scenes/" && cp "$HERE/template/CHAPTER_BRIEF.md" "$DIR/"
 python3 - "$DIR" <<'PY'
 import sys, pathlib
 d = pathlib.Path(sys.argv[1])
@@ -19,6 +22,8 @@ s = (d / 'studio.html').read_text()
 old = '<script src="src/scenes/demo.js"></script>'
 assert old in s, 'studio.html layout changed upstream'
 s = s.replace(old, '<script src="src/lyrics.js"></script>\n<script src="src/cast.js"></script>\n<!-- SCENES: one tag per chapter file, in song order -->')
+s = s.replace('<script src="src/timeline.js"></script>', '<script src="src/timeline.js"></script>\n<script src="src/vec/engine.js"></script>\n<script src="src/vec/type.js"></script>')
+s = s.replace('<script src="src/cast.js"></script>', '<script src="src/cast.js"></script>\n<script src="src/vec/vec.js"></script>\n<script src="src/vec/canvas.js"></script>\n<script src="src/vec/clawd.js"></script>\n<script src="src/vec/props.js"></script>\n<script src="src/vec/rivals.js"></script>\n<script src="src/scenes/sets.js"></script>')
 (d / 'studio.html').write_text(s)
 t = (d / 'src/timeline.js').read_text()
 old = "    SHOTS[i][1](t, t - t0, end - t0);\n    CAM = null;\n"
