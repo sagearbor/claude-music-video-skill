@@ -15,6 +15,8 @@ git clone https://github.com/sagearbor/claude-music-video-skill ~/.claude/skills
 No git? Download the ZIP from GitHub and unzip it so that `~/.claude/skills/music-video/SKILL.md` exists.
 
 Needs: Node 20+, Google Chrome, ffmpeg, [uv](https://docs.astral.sh/uv/), git. On a Mac: `brew install node ffmpeg uv`.
+For `--engine=3d`, Blender is optional (`brew install --cask blender`; it bevels the bricks), and the LDraw parts library
+(CC BY 4.0) downloads itself on first use.
 
 ## Use
 In Claude Code:
@@ -29,6 +31,9 @@ Want fewer or more stops?
   and self-reviewed, and what Claude decided on its own is written to `DECISIONS.md`.
 - `--design` adds a stage before any animation: character model sheets, palette swatches and one style frame per
   chapter, iterated with you until the look is right.
+- `--engine=3d` builds a brick-toy stop-motion world instead of the painted cartoon: minifig-style people from the
+  open LDraw parts library, plastic sheen, soft light, shallow focus, one continuous world the camera flies through,
+  and a dial that flattens the 3D world into a 2D cut-out. Default stays `--engine=2d`.
 
 ## Improve it over time
 After each video, have Claude add a dated entry to `LESSONS.md` (what broke, what fixed it, what to try next).
@@ -42,10 +47,15 @@ Claude reads it first every time, so the next video starts smarter.
 | `scripts/setup_project.sh` | Clones [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) at a pinned commit and adds the cast and karaoke |
 | `scripts/analyze_song.py` | Tempo (phase-fitted), drops, sections, `lyrics.js`, `config.js` |
 | `template/src/cast.js` | Pip (the human), props, karaoke bar |
+| `scripts/setup_3d.sh` | Adds the 3D engine (`setup_project.sh DIR --engine=3d` calls it) |
+| `scripts/ldraw_bake.py` | LDraw parts → compact JSON meshes (print colours kept) for the 3D engine |
+| `scripts/bevel_parts.py` | Blender, offline: bevels every baked part once |
+| `template3d/` | The 3D engine (`src3d/`), starter world/countryside/design scenes, the chapter guide |
 | `examples/zoo2/` | Storyboard, all chapter files and the making-of from the first video |
-| `tests/run_tests.py` | `python3 tests/run_tests.py` |
+| `examples/zoo2-3d/` | The same song as a 3D brick world: storyboard, chapters, engine bake-off, making-of |
+| `tests/run_tests.py` | `python3 tests/run_tests.py` (runs `tests/js_tests.mjs` too) |
 
 ## Credits
-Built on John Heibel's MIT-licensed [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) and
+3D parts come from the [LDraw](https://www.ldraw.org) parts library (CC BY 4.0). Built on John Heibel's MIT-licensed [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) and
 inspired by [I'm Upping My P(doom)](https://github.com/JohnHeibel/PDoomVideo). The Pip character is adapted from that
 video's Researcher.

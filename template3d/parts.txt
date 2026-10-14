@@ -1,0 +1,58 @@
+# LDraw parts baked for the 3D engine (scripts/ldraw_bake.py). Add ids here, re-run the bake.
+# minifig
+3626c   # head
+973     # torso
+3818    # arm right
+3819    # arm left
+3820    # hand
+3815    # hips
+3816    # leg right
+3817    # leg left
+41334   # knit cap (Pip's beanie)
+62810   # hair short tousled
+# bricks, plates, tiles
+3001
+3003
+3004
+3005
+3010
+3009
+3024
+3022
+3020
+3023b
+3710
+3666
+3068b
+3069b
+3070b
+6141
+3062b
+98138
+3958
+3832
+4740
+# plants
+30176
+2423
+# official printed heads (crowd faces; 2-sided ones swap expression by spinning the head)
+3626cp7j
+3626cp81
+3626cp78
+3626cp8d
+3626cp7s
+3626cp8q
+3626cp8t
+3626cp80
+3626cp8e
+3626cp85
+3626cp8s
+3626cp7b
+3626cp88
+3626cp70
+3626cp0a
+3626cp7p
+3626cp8j
+3626cp7a
+3626cp8m
+3626cp0b
