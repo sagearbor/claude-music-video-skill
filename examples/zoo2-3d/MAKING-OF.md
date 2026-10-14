@@ -47,3 +47,54 @@ saved most of it, and that's now the default (the gate is in `CHAPTER_GUIDE.md`)
 - Video: `~/PROJECTS/zoo2-3d-video/out/zoo2_3d_full.mp4` (v2) and `zoo2_3d_full_v1.mp4` (kept for comparison)
 - Bake-off: `bakeoff/` (`VERDICT.md`, compare sheets, `bakeoff_chorus1.py`)
 - Design sheets: `design/`; storyboard: `STORYBOARD.md`; agent contract: `CHAPTER_GUIDE.md`; chapters: `scenes3d/`
+
+## YouTube: paste-ready
+
+**Title**
+Please Select Your Ending (3D brick-world remake): a music video built entirely in code by Claude Code
+
+**Description**
+```
+Zoo? Nah. Doom? Nah. Bliss? Nah. We write our own ending. Now in a brick-toy 3D world.
+
+Song: made with Suno. Video: every frame was rendered by code that Claude (Opus 5.5 in Claude Code) wrote.
+No AI image or video generators were used. It's a remake of my 2D version, and this time it's one continuous camera flight through a living 3D world, with no hard cuts.
+
+CHAPTERS
+0:00 The call: "Please select your ending"
+0:25 Chorus 1: the three doors
+0:35 Ending 1: the Zoo
+1:16 Chorus 2
+1:36 Ending 2: Doom (watch the smoke)
+1:57 Ending 3: Bliss
+2:18 Chorus 3 and the roast
+2:48 Pennsylvania Dutch barn raising
+3:09 The moon seed vault
+3:34 Bridge: "Who writes the ending?" (the world flattens to 2D)
+3:47 Final chorus: back to 3D
+4:09 Outro: writing our own ending
+
+HOW IT WAS MADE
+• Built from the free LDraw open parts library (bricks, printed minifig-style heads), bevelled once in Blender and rendered in Three.js inside headless Chrome.
+• Engine bake-off: Claude rendered the same chorus in Blender and in Three.js. Blender looked better, Three.js was about 50x faster, so I used both: Blender bevels the parts once and Three.js draws every frame.
+• A "flat" dial turns 3D into a paper cut-out for the bridge: a dolly-zoom to orthographic, toon shading and ink outlines. Then it pops back to 3D on the final drop.
+• 9 Claude sub-agents built the chapters in parallel. Each one had to pass a continuity checker: no teleporting bodies, kicks that really hit the door, keys that pass hand to hand.
+• Hidden in the background: robots building the city, farmers sowing, a river, and AI-apocalypse easter eggs (a paperclip factory, HAL's eye, the shoggoth, the off switch, Daisy Bell...). How many can you find?
+
+BY THE NUMBERS
+• 2 hours 39 minutes from the prompt to the final video, including two rounds of my review.
+• 6,471 frames at 1080p, rendered in about 5 minutes on a MacBook (M5 Max), about 0.05 s per frame.
+• Cost: $0 extra on my Claude subscription. About $130 if it had been paid at API prices.
+
+The code is open source as a Claude Code skill:
+https://github.com/sagearbor/claude-music-video-skill
+
+Parts from the LDraw library (CC BY 4.0), ldraw.org. Not affiliated with or endorsed by any toy company.
+Original 2D kit: John Heibel's ClaudeAnimationBase (MIT) https://github.com/JohnHeibel/ClaudeAnimationBase
+
+#ClaudeCode #AIMusicVideo #CreativeCoding #threejs #Suno
+```
+
+**Tags:** Claude Code, AI music video, Three.js, LDraw, brick animation, stop motion, creative coding, Suno, AI apocalypse, p(doom), music video, Blender
+**Category:** Music (or Science & Technology). **Audience:** not made for kids. **Altered or synthetic content:** yes (AI-generated song).
+**Thumbnail:** `out/thumb.jpg`
