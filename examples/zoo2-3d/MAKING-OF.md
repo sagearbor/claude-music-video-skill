@@ -86,8 +86,17 @@ BY THE NUMBERS
 • 6,471 frames at 1080p, rendered in about 5 minutes on a MacBook (M5 Max), about 0.05 s per frame.
 • Cost: $0 extra on my Claude subscription. About $130 if it had been paid at API prices.
 
-The code is open source as a Claude Code skill:
-https://github.com/sagearbor/claude-music-video-skill
+MAKE YOUR OWN (free with a Claude subscription)
+1. Install the tools (Mac): brew install node ffmpeg uv  (plus Google Chrome; Blender optional: brew install --cask blender)
+2. Install the skill:
+git clone -b engine-3d https://github.com/sagearbor/claude-music-video-skill ~/.claude/skills/music-video
+3. Open Claude Code in an empty folder and paste this prompt (swap in your own files):
+
+/music-video ~/Downloads/mysong.mp3 ~/Downloads/mysong.srt --engine=3d --design
+Make it a brick-toy stop-motion world: one continuous camera flight with no hard cuts, a living background (robots building, people walking, a river), one visual idea per lyric line acted by the characters, and a few hidden easter eggs. Stop once so I can approve the storyboard and design sheets, then build the chapters in parallel with sub-agents. Every chapter must pass the continuity checker with 0 problems. Render 1080p MP4 and check it with ffprobe.
+
+Suno songs with lyrics built in don't need the .srt. Type /music-video help for all options.
+Code: https://github.com/sagearbor/claude-music-video-skill
 
 Parts from the LDraw library (CC BY 4.0), ldraw.org. Not affiliated with or endorsed by any toy company.
 Original 2D kit: John Heibel's ClaudeAnimationBase (MIT) https://github.com/JohnHeibel/ClaudeAnimationBase
