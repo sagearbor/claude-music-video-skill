@@ -125,7 +125,12 @@ Never skip the final ffprobe check and the lyric/frame spot check in step 8: tho
    - Then ask the remaining unset choices in **one** `AskUserQuestion` round (lyrics, density, human), plus the
      song-specific calls a storyboard can't make alone: how literally to show real brands or products, and
      how to show sensitive lyric lines (violence, scandal, real events).
-   - With a `--human` photo, look at it and write the caricature traits into `STORYBOARD.md` (head shape, hair or none,
+   - **Reuse before redrawing:** if `PARENT/_shared/cast/` already has a character for this person (e.g. `<name>.js` +
+     `<name>_body.js`, approved in an earlier video), copy those files into `src/vec/`, add their `<script>` tags after
+     `vec.js`, and use them as-is (expression and pose controls included). Only redraw if the user asks for changes.
+     After a new person is approved, copy their files into `PARENT/_shared/cast/` (with a line in `_shared/README.md`)
+     so the next video reuses them.
+   - With a new `--human` photo, look at it and write the caricature traits into `STORYBOARD.md` (head shape, hair or none,
      facial hair, brow, eyes, usual clothes). Draw from the traits; never trace or paste the photo into the video.
    **G0 — STOP** after sending the stills and questions. Combine answers into the choices, then go on.
 3. **Read** `DIR/ANIMATION_GUIDE.md` (the kit's rules), `LESSONS.md` and one example chapter
