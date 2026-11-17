@@ -11,6 +11,7 @@ metadata:
 | Invocation | Do this |
 |---|---|
 | `/music-video help`, `/music-video` with no song, or "how do I use this?" | Print the **Help** block below verbatim, then check prerequisites (`node -v`, `ffmpeg -version`, `uv --version`, Chrome present) and report each as ✅/❌ with the install command. Stop; don't start a video. |
+| `/music-video <song or lyrics> --avatar [flags]` | Avatar mode: an AI character really sings it (local MLX models + Suno/Gemini via Chrome). Read `AVATAR.md` and follow it instead of the pipeline below. |
 | `/music-video lessons` | Print `LESSONS.md` (the newest entry in full, older entries as headings only). |
 | `/music-video <song file> [lyrics.srt] [flags] [notes]` | Parse the **Flags** below, say in one line which gates are on and which choices are already set, then run the pipeline. |
 

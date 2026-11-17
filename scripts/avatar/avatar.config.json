@@ -1,0 +1,32 @@
+{
+  "_note": "Command templates for the local models. Ports change fast: on first run, `doctor.sh` prints each tool's --help; if a flag moved, fix it HERE (not in the scripts). Placeholders: {image} {prompt} {seconds} {frames} {w} {h} {out} {video} {audio} {model}.",
+  "profiles": {
+    "mac32": {
+      "_for": "16-48 GB Apple Silicon (e.g. a 3-year-old M2/M3 with 32 GB). Lower res, short clips, int4.",
+      "w": 512, "h": 320, "fps": 24, "max_clip_s": 5,
+      "ltx_model": "dgrauet/ltx-2.3-mlx-q4",
+      "ltx_extra": "--distilled --low-ram"
+    },
+    "mac64": {
+      "_for": "64-96 GB.",
+      "w": 768, "h": 448, "fps": 24, "max_clip_s": 6,
+      "ltx_model": "dgrauet/ltx-2.3-mlx-q4",
+      "ltx_extra": "--distilled"
+    },
+    "mac128": {
+      "_for": "128 GB+ (M5 Max). Bigger frames, int8, two-stage.",
+      "w": 1024, "h": 576, "fps": 24, "max_clip_s": 8,
+      "ltx_model": "dgrauet/ltx-2.3-mlx",
+      "ltx_extra": "--two-stage"
+    }
+  },
+  "commands": {
+    "i2v": "ltx-2-mlx generate --mode i2v --image {image} -p {prompt} --num-frames {frames} --width {w} --height {h} --model {model} {extra} -o {out}",
+    "lipsync": "uv run --project {musetalk_dir} python {skill}/scripts/avatar/musetalk_run.py --video {video} --audio {audio} --out {out}",
+    "stems": "uvx --from demucs demucs --two-stems=vocals -n htdemucs -o {outdir} {audio}"
+  },
+  "repos": {
+    "ltx": "https://github.com/dgrauet/ltx-2-mlx",
+    "musetalk_weights": "mlx-community/MuseTalk-1.5-fp16"
+  }
+}
